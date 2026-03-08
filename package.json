@@ -1,0 +1,11 @@
+{
+    "name": "lottery-analyzer",
+    "version": "2.1.0",
+    "private": true,
+    "description": "体彩深度分析 — 自动化数据抓取与智能预测",
+    "scripts": {
+        "fetch": "node scripts/fetch-data.js",
+        "analyze": "node scripts/analyze.js",
+        "update": "npm run fetch && npm run analyze"
+    }
+}

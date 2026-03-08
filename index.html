@@ -1,0 +1,564 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="中国体育彩票深度分析工具 — 竞彩足球赔率分析、凯利指数、大乐透号码统计、走势图、冷热号分析、实时数据更新">
+  <title>体彩深度分析 V2.0 — 竞彩足球 & 大乐透</title>
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+</head>
+
+<body>
+  <!-- Particle Background -->
+  <canvas id="particle-bg"></canvas>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <h1>⚽ 体彩深度分析 🎱</h1>
+    <p class="subtitle">竞彩足球赔率分析 · 大乐透号码统计 · 走势图分析 · 智能计算引擎</p>
+    <div class="header-stats">
+      <span class="header-stat"><span class="pulse-dot"></span> 系统运行中</span>
+      <span class="header-stat" id="header-data-count">📊 已存 0 期数据</span>
+      <span class="header-stat" id="header-last-update">🕐 --</span>
+      <span class="realtime-status" id="realtime-indicator">
+        <span class="realtime-dot"></span>
+        <span id="realtime-text">实时监控就绪</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- Tab Navigation -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="football" id="tab-btn-football">
+      <span><span class="tab-icon">⚽</span>竞彩足球</span>
+    </button>
+    <button class="tab-btn" data-tab="dlt" id="tab-btn-dlt">
+      <span><span class="tab-icon">🎱</span>大乐透分析</span>
+    </button>
+    <button class="tab-btn" data-tab="trend" id="tab-btn-trend">
+      <span><span class="tab-icon">📈</span>走势图</span>
+    </button>
+    <button class="tab-btn" data-tab="check" id="tab-btn-check">
+      <span><span class="tab-icon">🏆</span>中奖查询</span>
+    </button>
+  </nav>
+
+  <!-- ========== TAB 1: 竞彩足球深度分析 ========== -->
+  <section class="tab-content active" id="tab-football">
+    <!-- Latest Football Results Banner -->
+    <div id="fb-latest-banner" class="card" style="border-left:3px solid var(--green);">
+      <div class="card-title" style="margin-bottom:0.5rem;"><span class="icon">📢</span> 最新赛事动态</div>
+      <div id="fb-latest-content" style="font-size:0.85rem;color:var(--text-secondary);">
+        <p>💡 点击「载入示例数据」查看示例赛事分析，或手动输入今日赛事赔率开始分析。</p>
+      </div>
+    </div>
+
+    <!-- Match Input Area -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span> 比赛赔率输入</div>
+      <div id="match-list">
+        <!-- Dynamic match entries will be inserted here -->
+      </div>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-ghost btn-sm" id="btn-add-match">+ 添加比赛</button>
+        <button class="btn btn-ghost btn-sm" id="btn-load-sample">📥 载入示例数据</button>
+      </div>
+    </div>
+
+    <!-- Parlay Config -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🔗</span> 过关方式 & 投注参数</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">过关方式</label>
+          <div class="parlay-options" id="parlay-options">
+            <!-- Dynamically generated based on match count -->
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">单注金额（元）</label>
+          <input type="number" class="form-input" id="bet-amount" value="2" min="2" step="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">倍数</label>
+          <input type="number" class="form-input" id="bet-multiple" value="1" min="1" max="99">
+        </div>
+        <div class="form-group">
+          <label class="form-label">你估计的胜率（用于凯利指数，可选）</label>
+          <input type="text" class="form-input" id="est-prob" placeholder="如: 0.55, 0.30, 0.15（对应胜平负）">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block mt-1" id="btn-analyze-football">🔍 开始深度分析</button>
+    </div>
+
+    <!-- Football Results -->
+    <div id="football-results" class="hidden">
+      <!-- Basic Results -->
+      <div class="result-panel">
+        <div class="result-title">📊 投注概要</div>
+        <div class="result-grid" id="fb-summary">
+          <!-- Dynamically filled -->
+        </div>
+      </div>
+
+      <!-- Kelly & EV Analysis -->
+      <div class="analysis-row mt-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">📈</span> 凯利指数分析</div>
+          <div id="kelly-results">
+            <!-- Table with Kelly values per outcome -->
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">💰</span> 期望值 (EV) 分析</div>
+          <div id="ev-results">
+            <!-- Table with EV per outcome -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Odds Chart -->
+      <div class="card mt-1">
+        <div class="card-title"><span class="icon">📊</span> 赔率概率可视化</div>
+        <div class="chart-container">
+          <canvas id="odds-chart" height="250"></canvas>
+        </div>
+      </div>
+
+      <!-- Value Bet Detection -->
+      <div class="card mt-1">
+        <div class="card-title"><span class="icon">🎯</span> 价值投注检测</div>
+        <div id="value-bets">
+          <!-- Value bet detection results -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TAB 2: 大乐透深度分析 ========== -->
+  <section class="tab-content" id="tab-dlt">
+    <!-- ❶ Latest DLT Draw Banner -->
+    <div id="dlt-latest-banner" class="card" style="border-left:3px solid var(--red);">
+      <div class="card-title" style="margin-bottom:0.5rem;"><span class="icon">🔴</span> 上期开奖结果</div>
+      <div id="dlt-latest-content">
+        <div class="skeleton-group">
+          <div class="skeleton" style="width:50%;height:18px;margin-bottom:8px;"></div>
+          <div class="skeleton" style="width:100%;height:44px;margin-bottom:8px;"></div>
+          <div class="skeleton" style="width:70%;height:14px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ❷ Prediction Archive System (NEW) -->
+    <div class="card"
+      style="border:1px solid rgba(138,43,226,0.3);background:linear-gradient(135deg,rgba(20,15,50,0.9),rgba(40,20,60,0.3));">
+      <div class="card-title"><span class="icon">🔮</span> 预测存档系统
+        <span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);margin-left:0.5rem;">每期自动预测 → 存档 → 对比 →
+          优化</span>
+      </div>
+      <div
+        style="padding:0.75rem;background:rgba(10,14,26,0.5);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:0.75rem;">
+        <div
+          style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
+          <span style="font-size:0.85rem;font-weight:600;color:var(--cyan);">🎯 下期预测（<span
+              id="pred-target-issue">--</span> 期）</span>
+          <div class="flex gap-1">
+            <button class="btn btn-primary btn-sm" id="btn-generate-pred">🔮 生成预测</button>
+            <button class="btn btn-secondary btn-sm" id="btn-compare-pred">🔍 对比开奖</button>
+          </div>
+        </div>
+        <div id="prediction-sets">
+          <p style="font-size:0.8rem;color:var(--text-muted)">点击「生成预测」为下一期生成 5 组号码</p>
+        </div>
+      </div>
+      <div style="margin-bottom:0.75rem;">
+        <div class="card-title" style="font-size:0.85rem;cursor:pointer;" id="toggle-pred-history">
+          📋 历史预测记录 <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400">（点击展开）</span>
+          <span id="pred-history-count" class="value-badge value" style="margin-left:0.5rem;">0 期</span>
+        </div>
+        <div id="pred-history-body" class="hidden">
+          <div id="pred-history-list" style="max-height:400px;overflow-y:auto;"></div>
+          <div class="flex gap-1 mt-1">
+            <button class="btn btn-ghost btn-sm" id="btn-export-pred">💾 导出预测</button>
+            <button class="btn btn-ghost btn-sm" id="btn-clear-pred" style="color:var(--red)">🗑️ 清空预测</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card-title" style="font-size:0.85rem;cursor:pointer;" id="toggle-perf-panel">
+          📊 策略表现 <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400">（点击展开）</span>
+        </div>
+        <div id="perf-panel-body" class="hidden">
+          <div id="strategy-performance"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ❸ Next Draw Recommendation -->
+    <div class="card"
+      style="border:1px solid rgba(255,215,0,0.2);background:linear-gradient(135deg,rgba(20,28,50,0.9),rgba(30,25,10,0.4));">
+      <div class="card-title"><span class="icon">🎯</span> 下期建议号码</div>
+      <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:1rem;">基于频率、遗漏值、奇偶平衡、和值范围等多维度综合评分，生成 3 组推荐号码。
+      </p>
+      <div id="recommendation-sets"></div>
+      <button class="btn btn-primary btn-sm mt-1" id="btn-regenerate" style="margin-top:0.75rem;">🔄 重新生成</button>
+      <div
+        style="margin-top:0.75rem;padding:0.6rem;background:rgba(10,14,26,0.5);border-radius:var(--radius-sm);font-size:0.75rem;color:var(--text-muted);">
+        <strong>⚠️ 算法说明：</strong>综合考量 ❶出现频率 ❷遗漏回补 ❸近期趋势 ❹奇偶比2:3~3:2 ❺和值75-115区间 ❻号码跨度均衡。
+        <strong style="color:var(--yellow)">彩票为随机事件，建议号码仅供参考，不构成投注建议。</strong>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- ❹ Analysis Controls -->
+    <div class="card" id="analysis-controls">
+      <div class="card-title"><span class="icon">⚙️</span> 分析参数配置</div>
+      <div class="form-row" style="align-items:end;">
+        <div class="form-group">
+          <label class="form-label">分析期数范围</label>
+          <select class="form-select" id="analysis-period">
+            <option value="20">最近 20 期</option>
+            <option value="30">最近 30 期</option>
+            <option value="50" selected>最近 50 期（推荐）</option>
+            <option value="80">最近 80 期</option>
+            <option value="100">最近 100 期</option>
+            <option value="0">全部数据</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <button class="btn btn-primary btn-block" id="btn-analyze-history">📊 运行深度分析</button>
+        </div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">💡 推荐分析50期：兼顾数据量与时效性。</p>
+    </div>
+
+    <!-- ❺ Analysis Stats Summary -->
+    <div id="analysis-stats" class="hidden">
+      <div class="result-panel" style="margin-bottom:1rem;">
+        <div class="result-title">📊 分析概要</div>
+        <div class="result-grid" id="analysis-summary-grid"></div>
+      </div>
+    </div>
+
+    <!-- ❻ Analysis Results -->
+    <div id="dlt-analysis" class="hidden">
+      <div class="card">
+        <div class="card-title"><span class="icon">🔥</span> 号码频率热力图</div>
+        <div class="section-label"><span class="dot red"></span> 前区号码频次</div>
+        <div class="number-grid" id="heatmap-front"></div>
+        <div class="section-label mt-1"><span class="dot blue"></span> 后区号码频次</div>
+        <div class="number-grid" id="heatmap-back"></div>
+      </div>
+      <div class="analysis-row">
+        <div class="card">
+          <div class="card-title"><span class="icon">🌡️</span> 最热号码 TOP 10</div>
+          <div id="hot-numbers"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">❄️</span> 最冷号码 TOP 10</div>
+          <div id="cold-numbers"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">⏳</span> 遗漏值追踪（前区）</div>
+        <div class="chart-container"><canvas id="missing-chart" height="220"></canvas></div>
+      </div>
+      <div class="analysis-row">
+        <div class="card">
+          <div class="card-title"><span class="icon">⚖️</span> 奇偶比分析</div>
+          <div class="chart-container"><canvas id="oddeven-chart" height="200"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">📐</span> 和值分布</div>
+          <div class="chart-container"><canvas id="sum-chart" height="200"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">📊</span> 中奖概率对照表</div>
+        <div style="overflow-x:auto;">
+          <table class="data-table" id="prob-table">
+            <thead>
+              <tr>
+                <th>奖级</th>
+                <th>匹配规则</th>
+                <th>概率</th>
+                <th>约几注中1注</th>
+                <th>奖金</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- ❼ Number Selection -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🔢</span> 大乐透选号</div>
+      <div class="section-label"><span class="dot red"></span> 前区（从 01-35 选 5 个）</div>
+      <div class="number-grid" id="front-zone"></div>
+      <div class="section-label mt-1"><span class="dot blue"></span> 后区（从 01-12 选 2 个）</div>
+      <div class="number-grid" id="back-zone"></div>
+      <div class="quick-actions">
+        <button class="btn btn-ghost btn-sm" id="btn-random-pick">🎲 随机5+2</button>
+        <button class="btn btn-ghost btn-sm" id="btn-smart-pick">🧠 智能选号</button>
+        <button class="btn btn-ghost btn-sm" id="btn-clear-pick">🗑️ 清空选号</button>
+        <button class="btn btn-ghost btn-sm" id="btn-quick-3">⚡ 机选3注</button>
+      </div>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label class="form-label">投注方式</label>
+          <select class="form-select" id="dlt-bet-type">
+            <option value="single">单式</option>
+            <option value="multi">复式</option>
+            <option value="dantuo">胆拖</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">倍数</label>
+          <input type="number" class="form-input" id="dlt-multiple" value="1" min="1" max="99">
+        </div>
+      </div>
+      <button class="btn btn-red btn-block mt-1" id="btn-calc-dlt">🧮 计算注数与金额</button>
+    </div>
+    <div id="dlt-calc-result" class="hidden">
+      <div class="result-panel">
+        <div class="result-title">🎫 投注计算结果</div>
+        <div class="result-grid" id="dlt-summary"></div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- ❽ Data Management Panel -->
+    <div class="card">
+      <div class="card-title flex justify-between" style="cursor:pointer;" id="toggle-data-panel">
+        <span><span class="icon">📝</span> 开奖数据管理 <span
+            style="font-size:0.75rem;color:var(--text-muted);font-weight:400">（点击展开/收起）</span></span>
+        <span id="data-count-badge" class="value-badge value">已存 0 期</span>
+      </div>
+      <div id="data-panel-body">
+        <div
+          style="background:rgba(10,14,26,0.5);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem;margin-bottom:0.75rem;">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--cyan);margin-bottom:0.5rem;">➕ 录入新一期开奖</div>
+          <div class="form-row-3">
+            <div class="form-group"><label class="form-label">期号</label><input type="text" class="form-input"
+                id="new-issue" placeholder="如: 25021"></div>
+            <div class="form-group"><label class="form-label">前区号码（空格分隔）</label><input type="text" class="form-input"
+                id="new-front" placeholder="如: 03 10 22 28 35"></div>
+            <div class="form-group"><label class="form-label">后区号码（空格分隔）</label><input type="text" class="form-input"
+                id="new-back" placeholder="如: 05 11"></div>
+          </div>
+          <div class="flex gap-1 mt-1">
+            <button class="btn btn-primary btn-sm" id="btn-add-draw">✅ 录入并自动分析</button>
+            <button class="btn btn-ghost btn-sm" id="btn-batch-add">📋 批量录入</button>
+          </div>
+          <div id="add-draw-msg" style="font-size:0.8rem;margin-top:0.4rem;"></div>
+        </div>
+        <div id="batch-add-area" class="hidden"
+          style="background:rgba(10,14,26,0.5);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem;margin-bottom:0.75rem;">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--yellow);margin-bottom:0.5rem;">📋 批量录入（每行一期：期号 前区号码
+            - 后区号码）</div>
+          <textarea class="form-input" id="batch-input" rows="6" style="font-size:0.8rem;line-height:1.8" placeholder="格式示例（每行一期）:
+25021 03 10 22 28 35 - 05 11
+25022 01 07 14 25 33 - 03 09"></textarea>
+          <div class="flex gap-1 mt-1">
+            <button class="btn btn-primary btn-sm" id="btn-batch-submit">✅ 批量提交</button>
+            <button class="btn btn-ghost btn-sm" id="btn-batch-cancel">取消</button>
+          </div>
+          <div id="batch-msg" style="font-size:0.8rem;margin-top:0.4rem;"></div>
+        </div>
+        <div
+          style="margin-bottom:0.75rem;padding:0.75rem;background:rgba(0,210,255,0.05);border:1px solid rgba(0,210,255,0.2);border-radius:var(--radius-sm);">
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" id="btn-fetch-official">🌐 从体彩官网抓取最新数据</button>
+            <span id="fetch-status" style="font-size:0.8rem;color:var(--text-muted);"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;">
+            <label style="font-size:0.8rem;color:var(--text-secondary);display:flex;align-items:center;gap:0.4rem;">
+              <input type="checkbox" id="auto-update-toggle" style="accent-color:var(--cyan);"> 自动定时更新（每30分钟）
+            </label>
+            <span class="realtime-status" id="auto-update-status" style="display:none;">
+              <span class="realtime-dot"></span><span id="auto-update-text">自动更新运行中</span>
+            </span>
+          </div>
+          <p style="font-size:0.7rem;color:var(--text-muted);margin-top:0.4rem;">数据来源: huiniao.top /
+            sporttery.cn（自动获取近100期真实数据）</p>
+        </div>
+        <div class="flex gap-1 mt-1" style="flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" id="btn-show-history">📋 查看全部数据</button>
+          <button class="btn btn-ghost btn-sm" id="btn-export-data">💾 导出数据</button>
+          <button class="btn btn-ghost btn-sm" id="btn-import-data">📂 导入数据</button>
+          <button class="btn btn-ghost btn-sm" id="btn-reset-data" style="color:var(--red)">🗑️ 重置为默认</button>
+        </div>
+        <input type="file" id="file-import" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <!-- History Data Modal -->
+    <div id="history-modal" class="hidden">
+      <div class="card">
+        <div class="card-title flex justify-between">
+          <span><span class="icon">📋</span> 全部开奖记录 (<span id="history-count">0</span> 期)</span>
+          <button class="btn btn-ghost btn-sm" id="btn-close-history">✕ 关闭</button>
+        </div>
+        <div style="overflow-x:auto; max-height:400px; overflow-y:auto;">
+          <table class="data-table" id="history-table">
+            <thead>
+              <tr>
+                <th>期号</th>
+                <th>前区号码</th>
+                <th>后区号码</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="tab-content" id="tab-trend">
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span> 号码走势图</div>
+      <div class="trend-controls">
+        <select id="trend-period">
+          <option value="20">最近 20 期</option>
+          <option value="30" selected>最近 30 期</option>
+          <option value="50">最近 50 期</option>
+          <option value="100">全部数据</option>
+        </select>
+        <button class="btn btn-primary btn-sm" id="btn-draw-trend">📈 绘制走势图</button>
+      </div>
+      <div class="chart-container" style="overflow-x:auto;">
+        <canvas id="trend-chart" height="500"></canvas>
+      </div>
+    </div>
+
+    <!-- Size Ratio Analysis -->
+    <div class="analysis-row">
+      <div class="card">
+        <div class="card-title"><span class="icon">📏</span> 大小比分析</div>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;">前区号码 ≤17 为小，≥18 为大</p>
+        <div class="chart-container">
+          <canvas id="size-chart" height="200"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">🔗</span> 连号分析</div>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;">连续号码（如 05 06）出现频率</p>
+        <div class="chart-container">
+          <canvas id="consecutive-chart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three Zone Ratio -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🎯</span> 三区比分析</div>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;">一区(01-12) / 二区(13-23) / 三区(24-35) 分布比例
+      </p>
+      <div class="chart-container">
+        <canvas id="zone-chart" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- AC Value -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🧮</span> AC值走势</div>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;">AC值 = 前区号码两两之差的绝对值中不重复值的个数 -
+        4，值越大号码分布越分散</p>
+      <div class="chart-container">
+        <canvas id="ac-chart" height="180"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TAB 4: 中奖查询 ========== -->
+  <section class="tab-content" id="tab-check">
+    <div class="card">
+      <div class="card-title"><span class="icon">🏆</span> 大乐透中奖查询</div>
+      <div class="form-group">
+        <label class="form-label">开奖号码 — 前区（空格分隔）</label>
+        <input type="text" class="form-input" id="win-front" placeholder="如: 03 10 22 28 35">
+      </div>
+      <div class="form-group">
+        <label class="form-label">开奖号码 — 后区（空格分隔）</label>
+        <input type="text" class="form-input" id="win-back" placeholder="如: 05 11">
+      </div>
+      <div class="section-divider"></div>
+      <div class="form-group">
+        <label class="form-label">你的号码 — 前区（空格分隔）</label>
+        <input type="text" class="form-input" id="my-front" placeholder="如: 03 10 15 22 35">
+      </div>
+      <div class="form-group">
+        <label class="form-label">你的号码 — 后区（空格分隔）</label>
+        <input type="text" class="form-input" id="my-back" placeholder="如: 05 09">
+      </div>
+      <div class="form-group">
+        <label class="form-label">是否追加投注</label>
+        <select class="form-select" id="is-extra">
+          <option value="0">否 — 基本投注（2元/注）</option>
+          <option value="1">是 — 追加投注（3元/注）</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-block mt-1" id="btn-check-prize">🔍 查询中奖结果</button>
+    </div>
+
+    <!-- Prize Result -->
+    <div id="prize-result" class="hidden">
+      <div class="result-panel">
+        <div class="result-title">🏆 查询结果</div>
+        <div id="prize-detail">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Football Prize Check -->
+    <div class="card mt-2">
+      <div class="card-title"><span class="icon">⚽</span> 竞彩足球奖金计算</div>
+      <div class="form-group">
+        <label class="form-label">投注赔率（逗号分隔，如串关各场中奖赔率）</label>
+        <input type="text" class="form-input" id="fb-win-odds" placeholder="如: 1.85, 2.10, 3.50">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">单注金额（元）</label>
+          <input type="number" class="form-input" id="fb-check-amount" value="2" min="2">
+        </div>
+        <div class="form-group">
+          <label class="form-label">倍数</label>
+          <input type="number" class="form-input" id="fb-check-multiple" value="1" min="1">
+        </div>
+      </div>
+      <button class="btn btn-green btn-block mt-1" id="btn-calc-fb-prize">💰 计算奖金</button>
+      <div id="fb-prize-result" class="hidden mt-1">
+        <div class="result-grid" id="fb-prize-detail"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Disclaimer -->
+  <footer class="disclaimer">
+    <strong>⚠️ 免责声明</strong>：本工具仅供数据分析和学习参考，不构成任何投注建议。彩票有风险，投注需理性。中国体育彩票官方已声明任何 AI 均无法预测中奖号码。
+  </footer>
+
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

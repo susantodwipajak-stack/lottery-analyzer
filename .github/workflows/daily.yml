@@ -1,0 +1,37 @@
+name: 📊 每日自动分析
+
+on:
+  schedule:
+    # 每天 UTC 13:30 = 北京时间 21:30（大乐透开奖后）
+    - cron: '30 13 * * *'
+  workflow_dispatch:
+    # 支持手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 🛠️ 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📥 抓取开奖数据
+        run: node scripts/fetch-data.js
+
+      - name: 📊 运行分析 + 生成预测
+        run: node scripts/analyze.js
+
+      - name: 💾 提交更新
+        run: |
+          git config user.name "Lottery Bot 🤖"
+          git config user.email "bot@github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "📊 自动更新 $(date +%Y-%m-%d) | 第$(cat data/analysis.json | grep -o '\"nextIssue\":\"[^\"]*\"' | head -1 | cut -d'"' -f4)期预测"
+          git push
