@@ -166,40 +166,61 @@ function renderMatchRow(match) {
   match._id = id;
   const row = document.createElement('div');
   row.className = 'match-row'; row.id = 'match-' + id; row.dataset.matchId = id;
-  const league = match.league || '友谊赛', time = match.time || '--:--';
+  const league = match.league || '友谊赛', date = match.date || '--';
   const home = match.home || '主队', away = match.away || '客队';
   const oddsW = match.oddsW || 0, oddsD = match.oddsD || 0, oddsL = match.oddsL || 0;
   row.innerHTML = `
-    <span class="mr-num">${String(id).padStart(3, '0')}</span>
+    <span class="mr-num">${id}</span>
     <span class="mr-league" title="${league}">${league}</span>
-    <span class="mr-time">${time}</span>
-    <span class="mr-teams">${home}<span class="vs">vs</span>${away}</span>
-    <div class="odds-toggle win" data-match="${id}" data-type="w" data-odds="${oddsW}" onclick="toggleOdds(this)"><span class="odds-label">胜</span><span class="odds-value">${oddsW ? oddsW.toFixed(2) : '--'}</span></div>
-    <div class="odds-toggle draw" data-match="${id}" data-type="d" data-odds="${oddsD}" onclick="toggleOdds(this)"><span class="odds-label">平</span><span class="odds-value">${oddsD ? oddsD.toFixed(2) : '--'}</span></div>
-    <div class="odds-toggle loss" data-match="${id}" data-type="l" data-odds="${oddsL}" onclick="toggleOdds(this)"><span class="odds-label">负</span><span class="odds-value">${oddsL ? oddsL.toFixed(2) : '--'}</span></div>`;
+    <span class="mr-date">${date}</span>
+    <span class="mr-teams">${home}<span class="vs">VS</span>${away}</span>
+    <div class="cz-opt-btn win" data-match="${id}" data-type="w" data-odds="${oddsW}" onclick="toggleOdds(this)">3</div>
+    <div class="cz-opt-btn draw" data-match="${id}" data-type="d" data-odds="${oddsD}" onclick="toggleOdds(this)">1</div>
+    <div class="cz-opt-btn loss" data-match="${id}" data-type="l" data-odds="${oddsL}" onclick="toggleOdds(this)">0</div>
+    <span class="mr-sp">${oddsW ? oddsW.toFixed(2) : '--'}</span>
+    <span class="mr-sp">${oddsD ? oddsD.toFixed(2) : '--'}</span>
+    <span class="mr-sp">${oddsL ? oddsL.toFixed(2) : '--'}</span>`;
   return row;
 }
 function toggleOdds(el) {
   el.classList.toggle('selected');
   const row = el.closest('.match-row');
-  if (row) row.classList.toggle('has-selection', row.querySelectorAll('.odds-toggle.selected').length > 0);
-  updateParlayOptions();
+  if (row) row.classList.toggle('has-selection', row.querySelectorAll('.cz-opt-btn.selected, .odds-toggle.selected').length > 0);
+  updateParlayOptions(); updateBetBar();
 }
 function renderMatchList(matches) {
   const list = $('#match-list'); list.innerHTML = ''; matchCount = 0; matchData = matches;
-  if (matches.length === 0) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚽</div><div class="empty-state-title">暂无赛事数据</div><div class="empty-state-desc">拉取今日赛事或载入示例</div></div>'; return; }
+  if (matches.length === 0) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚽</div><div class="empty-state-title">暂无赛事数据</div><div class="empty-state-desc">拉取赛事数据或载入示例</div></div>'; return; }
   matches.forEach(m => list.appendChild(renderMatchRow(m)));
   const label = $('#match-count-label'); if (label) label.textContent = matches.length + ' 场比赛';
-  updateParlayOptions();
+  updateParlayOptions(); updateBetBar();
 }
 async function fetchFootballMatches() {
   const btn = $('#btn-fetch-matches'), status = $('#fb-status');
   setButtonLoading(btn, true);
-  status.innerHTML = '<span style="color:var(--cyan)">⏳ 正在获取竞彩赛事...</span>';
+  status.innerHTML = '<span style="color:var(--cyan)">⏳ 正在从体彩网获取赛事...</span>';
   const apis = [
     {
-      name: '体彩网', url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
-      extract: json => { if (!json?.value?.matchInfoList) return null; return json.value.matchInfoList.map(m => ({ league: m.leagueAbbName || m.leagueName || '未知', home: m.homeTeamAbbName || m.homeTeamName, away: m.awayTeamAbbName || m.awayTeamName, time: m.matchTime ? m.matchTime.substring(11, 16) : '--:--', oddsW: parseFloat(m.had?.a) || 0, oddsD: parseFloat(m.had?.d) || 0, oddsL: parseFloat(m.had?.h) || 0 })); }
+      name: '体彩官网(传统足彩)', url: 'https://webapi.sporttery.cn/gateway/lottery/getFootBallMatchV1.qry?param=90,0&sellStatus=0&termLimits=10',
+      extract: json => {
+        if (!json?.value?.matchInfoList) return null;
+        // Update period chips
+        const termList = json.value?.termList || [];
+        renderPeriodChips(termList);
+        return json.value.matchInfoList.map((m, i) => ({
+          league: m.leagueAbbName || m.leagueName || '未知',
+          home: m.homeTeamAbbName || m.homeTeamName || '主队',
+          away: m.awayTeamAbbName || m.awayTeamName || '客队',
+          date: m.matchDate || m.matchTime?.substring(0, 10) || '--',
+          oddsW: parseFloat(m.spWin) || parseFloat(m.had?.a) || 0,
+          oddsD: parseFloat(m.spDraw) || parseFloat(m.had?.d) || 0,
+          oddsL: parseFloat(m.spLose) || parseFloat(m.had?.h) || 0
+        }));
+      }
+    },
+    {
+      name: '体彩竞彩', url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
+      extract: json => { if (!json?.value?.matchInfoList) return null; return json.value.matchInfoList.map(m => ({ league: m.leagueAbbName || m.leagueName || '未知', home: m.homeTeamAbbName || m.homeTeamName, away: m.awayTeamAbbName || m.awayTeamName, date: m.matchDate || '--', oddsW: parseFloat(m.had?.a) || 0, oddsD: parseFloat(m.had?.d) || 0, oddsL: parseFloat(m.had?.h) || 0 })); }
     },
     { name: '本地数据', url: 'data/matches.json', extract: json => json?.matches || null }
   ];
@@ -210,19 +231,35 @@ async function fetchFootballMatches() {
   if (!matches?.length) { status.innerHTML = '<span style="color:var(--orange)">⚠️ 无法获取实时赛事，已载入示例</span>'; loadSampleMatches(); setButtonLoading(btn, false); return; }
   renderMatchList(matches); setButtonLoading(btn, false); showToast(`获取 ${matches.length} 场赛事`, 'success');
 }
+function renderPeriodChips(termList) {
+  const container = $('#cz-period-chips'); if (!container) return;
+  if (!termList?.length) { container.innerHTML = ''; return; }
+  container.innerHTML = termList.slice(0, 3).map((t, i) =>
+    `<span class="cz-period-chip ${i === 0 ? 'active' : ''}">${t.termNo || t} 期</span>`
+  ).join('');
+  const deadline = $('#cz-deadline');
+  if (deadline && termList[0]?.endTime) deadline.textContent = '投注截止时间：' + termList[0].endTime;
+}
 function loadSampleMatches() {
   renderMatchList([
-    { league: '英超', home: '曼城', away: '利物浦', time: '20:30', oddsW: 2.15, oddsD: 3.40, oddsL: 3.10 },
-    { league: '西甲', home: '巴塞罗那', away: '皇家马德里', time: '22:00', oddsW: 1.85, oddsD: 3.60, oddsL: 4.20 },
-    { league: '德甲', home: '拜仁慕尼黑', away: '多特蒙德', time: '21:30', oddsW: 1.55, oddsD: 4.10, oddsL: 5.50 },
-    { league: '意甲', home: 'AC米兰', away: '国际米兰', time: '21:00', oddsW: 2.80, oddsD: 3.20, oddsL: 2.45 },
-    { league: '法甲', home: '巴黎圣日耳曼', away: '马赛', time: '19:00', oddsW: 1.40, oddsD: 4.60, oddsL: 7.50 },
-    { league: '英超', home: '阿森纳', away: '切尔西', time: '23:00', oddsW: 1.90, oddsD: 3.50, oddsL: 3.80 },
-    { league: '欧冠', home: '皇马', away: '曼城', time: '03:00', oddsW: 2.30, oddsD: 3.30, oddsL: 2.90 },
-    { league: '中超', home: '上海海港', away: '北京国安', time: '19:35', oddsW: 1.75, oddsD: 3.40, oddsL: 4.50 }
+    { league: '欧冠', home: '加拉塔', away: '利物浦', date: '2026-03-11', oddsW: 3.98, oddsD: 3.90, oddsL: 1.61 },
+    { league: '欧冠', home: '亚特兰', away: '拜仁', date: '2026-03-11', oddsW: 4.25, oddsD: 4.15, oddsL: 1.53 },
+    { league: '英冠', home: '日奈桟', away: '热那', date: '2026-03-11', oddsW: 1.45, oddsD: 4.05, oddsL: 5.20 },
+    { league: '英冠', home: '保利茲', away: '亚兰', date: '2026-03-11', oddsW: 2.80, oddsD: 3.20, oddsL: 2.45 },
+    { league: '西甲', home: '巴塞罗那', away: '皇马', date: '2026-03-12', oddsW: 1.85, oddsD: 3.60, oddsL: 4.20 },
+    { league: '德甲', home: '拜仁', away: '多特', date: '2026-03-12', oddsW: 1.55, oddsD: 4.10, oddsL: 5.50 },
+    { league: '英超', home: '曼城', away: '利物浦', date: '2026-03-12', oddsW: 2.15, oddsD: 3.40, oddsL: 3.10 },
+    { league: '意甲', home: 'AC米兰', away: '国米', date: '2026-03-12', oddsW: 2.80, oddsD: 3.20, oddsL: 2.45 },
+    { league: '法甲', home: '巴黎', away: '马赛', date: '2026-03-13', oddsW: 1.40, oddsD: 4.60, oddsL: 7.50 },
+    { league: '英超', home: '阿森纳', away: '切尔西', date: '2026-03-13', oddsW: 1.90, oddsD: 3.50, oddsL: 3.80 },
+    { league: '欧冠', home: '皇马', away: '曼城', date: '2026-03-13', oddsW: 2.30, oddsD: 3.30, oddsL: 2.90 },
+    { league: '中超', home: '海港', away: '国安', date: '2026-03-13', oddsW: 1.75, oddsD: 3.40, oddsL: 4.50 },
+    { league: '韩K', home: '全北', away: '蔚山', date: '2026-03-14', oddsW: 1.65, oddsD: 3.60, oddsL: 4.80 },
+    { league: '日职', home: '浦和', away: '川崎', date: '2026-03-14', oddsW: 2.10, oddsD: 3.25, oddsL: 3.30 }
   ]);
-  showToast('示例赛事已载入（8场）', 'success');
-  $('#fb-status').innerHTML = '<span style="color:var(--text-secondary)">📋 已载入 8 场示例赛事，点击赔率按钮选择投注</span>';
+  renderPeriodChips([{ termNo: '26039' }, { termNo: '26040' }]);
+  showToast('示例赛事已载入（14场）', 'success');
+  $('#fb-status').innerHTML = '<span style="color:var(--text-secondary)">📋 已载入 14 场示例赛事，点击 3/1/0 选择投注</span>';
 }
 function addMatch(teamName, oddsW, oddsD, oddsL) {
   matchCount++; const id = matchCount;
@@ -235,12 +272,25 @@ function getMatches() {
   const matches = [];
   $$('.match-row').forEach(row => {
     const id = row.dataset.matchId, teams = row.querySelector('.mr-teams')?.textContent || `比赛${id}`;
+    const btns = row.querySelectorAll('.cz-opt-btn');
     const toggles = row.querySelectorAll('.odds-toggle');
-    const oddsW = parseFloat(toggles[0]?.dataset.odds) || 0, oddsD = parseFloat(toggles[1]?.dataset.odds) || 0, oddsL = parseFloat(toggles[2]?.dataset.odds) || 0;
+    let oddsW = 0, oddsD = 0, oddsL = 0;
     const selections = [];
-    if (toggles[0]?.classList.contains('selected') && oddsW > 0) selections.push({ type: '胜', odds: oddsW });
-    if (toggles[1]?.classList.contains('selected') && oddsD > 0) selections.push({ type: '平', odds: oddsD });
-    if (toggles[2]?.classList.contains('selected') && oddsL > 0) selections.push({ type: '负', odds: oddsL });
+    if (btns.length >= 3) {
+      oddsW = parseFloat(btns[0]?.dataset.odds) || 0;
+      oddsD = parseFloat(btns[1]?.dataset.odds) || 0;
+      oddsL = parseFloat(btns[2]?.dataset.odds) || 0;
+      if (btns[0]?.classList.contains('selected') && oddsW > 0) selections.push({ type: '胜', odds: oddsW });
+      if (btns[1]?.classList.contains('selected') && oddsD > 0) selections.push({ type: '平', odds: oddsD });
+      if (btns[2]?.classList.contains('selected') && oddsL > 0) selections.push({ type: '负', odds: oddsL });
+    } else if (toggles.length >= 3) {
+      oddsW = parseFloat(toggles[0]?.dataset.odds) || 0;
+      oddsD = parseFloat(toggles[1]?.dataset.odds) || 0;
+      oddsL = parseFloat(toggles[2]?.dataset.odds) || 0;
+      if (toggles[0]?.classList.contains('selected') && oddsW > 0) selections.push({ type: '胜', odds: oddsW });
+      if (toggles[1]?.classList.contains('selected') && oddsD > 0) selections.push({ type: '平', odds: oddsD });
+      if (toggles[2]?.classList.contains('selected') && oddsL > 0) selections.push({ type: '负', odds: oddsL });
+    }
     matches.push({ id, team: teams, oddsW, oddsD, oddsL, selections });
   });
   $$('.match-entry').forEach(entry => {
@@ -253,6 +303,21 @@ function getMatches() {
     matches.push({ id, team, oddsW: w, oddsD: d, oddsL: l, selections: sel });
   });
   return matches;
+}
+
+function updateBetBar() {
+  const selected = $$('.match-row').filter(r => r.querySelectorAll('.cz-opt-btn.selected, .odds-toggle.selected').length > 0);
+  let betCount = 1;
+  selected.forEach(r => {
+    const n = r.querySelectorAll('.cz-opt-btn.selected, .odds-toggle.selected').length;
+    betCount *= n;
+  });
+  if (selected.length === 0) betCount = 0;
+  const multi = parseInt($('#bet-multiple')?.value) || 1;
+  const amount = betCount * 2 * multi;
+  const countEl = $('#cz-bet-count'), amountEl = $('#cz-bet-amount');
+  if (countEl) countEl.textContent = betCount;
+  if (amountEl) amountEl.textContent = '¥' + amount;
 }
 
 function updateParlayOptions() {
@@ -673,21 +738,39 @@ $('#btn-load-sample').addEventListener('click', loadSampleMatches);
 $('#btn-add-match').addEventListener('click', () => addMatch('', '', '', ''));
 $('#btn-select-all').addEventListener('click', () => {
   $$('.match-row').forEach(row => {
-    const toggles = row.querySelectorAll('.odds-toggle');
-    let best = null, bestOdds = Infinity;
-    toggles.forEach(t => { const o = parseFloat(t.dataset.odds); if (o > 0 && o < bestOdds) { bestOdds = o; best = t; } });
-    if (best && !best.classList.contains('selected')) { best.classList.add('selected'); row.classList.add('has-selection'); }
+    const btns = row.querySelectorAll('.cz-opt-btn');
+    if (btns.length >= 3) {
+      let best = null, bestOdds = Infinity;
+      btns.forEach(b => { const o = parseFloat(b.dataset.odds); if (o > 0 && o < bestOdds) { bestOdds = o; best = b; } });
+      if (best && !best.classList.contains('selected')) { best.classList.add('selected'); row.classList.add('has-selection'); }
+    } else {
+      const toggles = row.querySelectorAll('.odds-toggle');
+      let best = null, bestOdds = Infinity;
+      toggles.forEach(t => { const o = parseFloat(t.dataset.odds); if (o > 0 && o < bestOdds) { bestOdds = o; best = t; } });
+      if (best && !best.classList.contains('selected')) { best.classList.add('selected'); row.classList.add('has-selection'); }
+    }
   });
-  updateParlayOptions(); showToast('已选择各场最可能结果', 'info');
+  updateParlayOptions(); updateBetBar(); showToast('已选择各场最可能结果', 'info');
 });
 $('#btn-clear-selection').addEventListener('click', () => {
+  $$('.cz-opt-btn.selected').forEach(b => b.classList.remove('selected'));
   $$('.odds-toggle.selected').forEach(t => t.classList.remove('selected'));
   $$('.match-row.has-selection').forEach(r => r.classList.remove('has-selection'));
-  updateParlayOptions(); showToast('已清空所有选择', 'info');
+  updateParlayOptions(); updateBetBar(); showToast('已清空所有选择', 'info');
 });
 $('#btn-analyze-football').addEventListener('click', analyzeFootball);
 $('#btn-gen-fb-picks').addEventListener('click', generateFbRecommendations);
 $('#btn-compare-fb').addEventListener('click', compareFbPredictions);
+// Game tab switching
+$$('.cz-game-tab').forEach(tab => tab.addEventListener('click', () => {
+  $$('.cz-game-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+}));
+// Multiplier +/- buttons
+const betMinus = $('#bet-minus'), betPlus = $('#bet-plus'), betMulti = $('#bet-multiple');
+if (betMinus) betMinus.addEventListener('click', () => { const v = Math.max(1, (parseInt(betMulti.value) || 1) - 1); betMulti.value = v; updateBetBar(); });
+if (betPlus) betPlus.addEventListener('click', () => { const v = Math.min(99, (parseInt(betMulti.value) || 1) + 1); betMulti.value = v; updateBetBar(); });
+if (betMulti) betMulti.addEventListener('change', updateBetBar);
 initFbPredictionUI();
 
 // =============================================

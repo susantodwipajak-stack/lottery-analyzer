@@ -51,54 +51,94 @@
 
   <!-- ========== TAB 1: 竞彩足球深度分析 ========== -->
   <section class="tab-content active" id="tab-football">
-    <!-- Match Data Source -->
-    <div class="card" style="border-left:3px solid var(--green);">
-      <div class="card-title" style="margin-bottom:0.5rem;">
-        <span class="icon">📢</span> 竞彩足球赛事
-        <div style="margin-left:auto;display:flex;gap:0.5rem;">
-          <button class="btn btn-primary btn-sm" id="btn-fetch-matches">🔄 拉取今日赛事</button>
-          <button class="btn btn-secondary btn-sm" id="btn-load-sample">📥 载入示例</button>
-        </div>
+    <!-- Game Type Tabs (official style) -->
+    <div class="cz-game-tabs">
+      <button class="cz-game-tab active" data-game="sf">胜负游戏</button>
+      <button class="cz-game-tab" data-game="r9">任选9场</button>
+      <button class="cz-game-tab" data-game="bqc">6场半全场</button>
+      <button class="cz-game-tab" data-game="jq">4场进球</button>
+      <span class="cz-max-prize">单注最高奖金 <span class="prize-amount">500 万元</span></span>
+    </div>
+
+    <!-- Instructions -->
+    <div class="cz-instructions">
+      玩法提示：以下14场比赛，每场比赛至少选择一个结果；比赛结果以90分钟（含伤停补时，不含加时赛）结果为准。
+    </div>
+
+    <!-- Period Selector -->
+    <div class="cz-period-bar">
+      <div class="cz-period-tabs">
+        <span class="cz-period-tab active" id="cz-tab-onsale">在售奖期</span>
+        <span class="cz-period-tab" id="cz-tab-upcoming">即将开售</span>
       </div>
-      <div id="fb-status" style="font-size:0.78rem;color:var(--text-muted);">
-        💡 点击「拉取今日赛事」获取官方竞彩数据，或「载入示例」查看演示
+      <div class="cz-period-chips" id="cz-period-chips">
+        <!-- Dynamically filled -->
+      </div>
+      <div class="cz-deadline" id="cz-deadline">
+        投注截止时间：--
       </div>
     </div>
 
-    <!-- Match List (official lottery style) -->
-    <div class="card" id="match-list-card">
-      <div class="card-title">
-        <span class="icon">⚽</span> 比赛列表
-        <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted);" id="match-count-label">0 场比赛</span>
+    <!-- Data Fetch Bar -->
+    <div class="cz-fetch-bar">
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn btn-primary btn-sm" id="btn-fetch-matches">🔄 拉取赛事数据</button>
+        <button class="btn btn-secondary btn-sm" id="btn-load-sample">📥 载入示例</button>
       </div>
-      <!-- Table-style header -->
-      <div class="match-table-header">
-        <span class="mth-col-num">编号</span>
-        <span class="mth-col-league">赛事</span>
-        <span class="mth-col-time">时间</span>
-        <span class="mth-col-teams">对阵</span>
-        <span class="mth-col-odds">胜</span>
-        <span class="mth-col-odds">平</span>
-        <span class="mth-col-odds">负</span>
+      <div id="fb-status" style="font-size:0.78rem;color:var(--text-muted);">
+        💡 点击「拉取赛事数据」从体彩官网获取在售赛事
+      </div>
+    </div>
+
+    <!-- Official Match Table -->
+    <div class="cz-match-table">
+      <div class="cz-table-header">
+        <span class="cz-th cz-th-no">场次</span>
+        <span class="cz-th cz-th-league">联赛</span>
+        <span class="cz-th cz-th-date">开赛日期</span>
+        <span class="cz-th cz-th-teams">主队 VS 客队</span>
+        <span class="cz-th cz-th-opt" style="color:var(--red);">胜<br><small>3</small></span>
+        <span class="cz-th cz-th-opt">平<br><small>1</small></span>
+        <span class="cz-th cz-th-opt" style="color:var(--blue);">负<br><small>0</small></span>
+        <span class="cz-th cz-th-sp" style="color:var(--red);">胜</span>
+        <span class="cz-th cz-th-sp">平</span>
+        <span class="cz-th cz-th-sp" style="color:var(--blue);">负</span>
       </div>
       <div id="match-list">
-        <!-- Dynamic match rows rendered here -->
+        <!-- Dynamic rows -->
         <div class="empty-state" id="match-empty">
           <div class="empty-state-icon">⚽</div>
           <div class="empty-state-title">暂无赛事数据</div>
-          <div class="empty-state-desc">拉取今日赛事或载入示例数据</div>
+          <div class="empty-state-desc">拉取赛事数据或载入示例</div>
         </div>
       </div>
-      <div class="flex gap-1 mt-1">
-        <button class="btn btn-ghost btn-sm" id="btn-add-match">+ 手动添加</button>
+      <div class="cz-table-footer">
         <button class="btn btn-ghost btn-sm" id="btn-select-all">☑ 全选热门</button>
-        <button class="btn btn-ghost btn-sm" id="btn-clear-selection">✕ 清空选择</button>
+        <button class="btn btn-ghost btn-sm" id="btn-clear-selection">✕ 清空选项</button>
+        <button class="btn btn-ghost btn-sm" id="btn-add-match">+ 手动添加</button>
+        <span id="match-count-label" style="margin-left:auto;font-size:0.78rem;color:var(--text-muted);">0 场比赛</span>
       </div>
     </div>
 
-    <!-- Parlay Config -->
+    <!-- Sticky Bottom Betting Bar -->
+    <div class="cz-bet-bar">
+      <div class="cz-bet-left">
+        <span style="font-size:0.8rem;color:var(--text-muted);">倍数</span>
+        <button class="cz-bet-adj" id="bet-minus">−</button>
+        <input type="number" class="cz-bet-multi" id="bet-multiple" value="1" min="1" max="99">
+        <button class="cz-bet-adj" id="bet-plus">+</button>
+        <span style="font-size:0.8rem;margin-left:0.25rem;">倍</span>
+      </div>
+      <div class="cz-bet-right">
+        <span>注数 <strong id="cz-bet-count" style="color:var(--cyan);">0</strong></span>
+        <span>金额 <strong id="cz-bet-amount" style="color:var(--gold);">¥0</strong></span>
+        <button class="btn btn-primary btn-sm" id="btn-analyze-football">🔍 开始深度分析</button>
+      </div>
+    </div>
+
+    <!-- Parlay & Analysis Config -->
     <div class="card">
-      <div class="card-title"><span class="icon">🔗</span> 过关方式 & 投注参数</div>
+      <div class="card-title"><span class="icon">🔗</span> 过关方式 & 分析参数</div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">过关方式</label>
@@ -113,15 +153,10 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">倍数</label>
-          <input type="number" class="form-input" id="bet-multiple" value="1" min="1" max="99">
-        </div>
-        <div class="form-group">
           <label class="form-label">你估计的胜率（用于凯利指数，可选）</label>
           <input type="text" class="form-input" id="est-prob" placeholder="如: 0.55, 0.30, 0.15（对应胜平负）">
         </div>
       </div>
-      <button class="btn btn-primary btn-block mt-1" id="btn-analyze-football">🔍 开始深度分析</button>
     </div>
 
     <!-- Football Results -->
