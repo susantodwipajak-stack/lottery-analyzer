@@ -1114,22 +1114,33 @@ function renderHotCold(frontFreq, backFreq, period) {
 
 function drawMissingChart(missing) {
   const canvas = $('#missing-chart');
-  const { ctx, W, H } = setupCanvas(canvas, 260);
-  const pad = { top: 30, bottom: 50, left: 10, right: 10 };
+  const { ctx, W, H } = setupCanvas(canvas, 300);
+  const pad = { top: 30, bottom: 60, left: 30, right: 15 };
   const cW = W - pad.left - pad.right, cH = H - pad.top - pad.bottom;
   const maxMiss = Math.max(...missing.slice(1, 36));
   const slotW = cW / 35;
-  const barW = Math.max(4, Math.min(16, slotW - 3));
+  const barW = Math.max(4, Math.min(16, slotW - 4));
+  // Y-axis scale lines
+  for (let step = 0; step <= 4; step++) {
+    const yLine = pad.top + cH - (step / 4) * cH;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, yLine); ctx.lineTo(W - pad.right, yLine); ctx.stroke();
+    ctx.fillStyle = '#5a6478'; ctx.font = '8px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxMiss * step / 4), pad.left - 4, yLine + 3);
+  }
   for (let i = 1; i <= 35; i++) {
     const x = pad.left + slotW * (i - 1) + (slotW - barW) / 2;
     const barH = Math.max(1, (missing[i] / (maxMiss || 1)) * cH), y = pad.top + cH - barH;
     const ratio = missing[i] / (maxMiss || 1);
     ctx.fillStyle = `rgb(${Math.round(41 + (231 - 41) * ratio)},${Math.round(128 + (76 - 128) * ratio)},${Math.round(185 + (60 - 185) * ratio)})`;
     ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.roundRect(x, y, barW, barH, 2); ctx.fill(); ctx.globalAlpha = 1;
-    const fontSize = slotW < 18 ? 7 : 8;
-    ctx.fillStyle = '#5a6478'; ctx.font = `${fontSize}px JetBrains Mono`; ctx.textAlign = 'center';
-    ctx.fillText(String(i).padStart(2, '0'), x + barW / 2, H - pad.bottom + 14);
-    if (missing[i] > 0) { ctx.fillStyle = '#8892a8'; ctx.font = `${fontSize}px JetBrains Mono`; ctx.fillText(missing[i], x + barW / 2, y - 4); }
+    // Label: show every number but rotated
+    ctx.save(); ctx.translate(x + barW / 2, H - pad.bottom + 12);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = '#5a6478'; ctx.font = '8px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(String(i).padStart(2, '0'), 0, 0);
+    ctx.restore();
+    if (missing[i] > 0) { ctx.fillStyle = '#8892a8'; ctx.font = '8px JetBrains Mono'; ctx.textAlign = 'center'; ctx.fillText(missing[i], x + barW / 2, y - 4); }
   }
   ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'left';
   ctx.fillText('前区号码遗漏期数', pad.left + 5, 18);
@@ -1137,43 +1148,59 @@ function drawMissingChart(missing) {
 
 function drawOddEvenChart() {
   const canvas = $('#oddeven-chart');
-  const { ctx, W, H } = setupCanvas(canvas, 240);
+  const { ctx, W, H } = setupCanvas(canvas, 280);
   const counts = {};
   DLT_HISTORY.forEach(d => { const odd = d.front.filter(n => n % 2 === 1).length; counts[`${odd}:${5 - odd}`] = (counts[`${odd}:${5 - odd}`] || 0) + 1; });
   const keys = Object.keys(counts).sort(), maxCount = Math.max(...Object.values(counts));
-  const pad = { top: 35, bottom: 45, left: 20, right: 20 };
+  const pad = { top: 35, bottom: 55, left: 35, right: 20 };
   const cW = W - pad.left - pad.right, cH = H - pad.top - pad.bottom;
   const slotW = cW / keys.length;
-  const barW = Math.max(20, Math.min(50, slotW - 12));
+  const barW = Math.max(25, Math.min(55, slotW - 16));
+  // Y-axis
+  for (let step = 0; step <= 4; step++) {
+    const yLine = pad.top + cH - (step / 4) * cH;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, yLine); ctx.lineTo(W - pad.right, yLine); ctx.stroke();
+    ctx.fillStyle = '#5a6478'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxCount * step / 4), pad.left - 5, yLine + 3);
+  }
   keys.forEach((key, i) => {
     const x = pad.left + slotW * i + (slotW - barW) / 2;
     const barH = Math.max(2, (counts[key] / maxCount) * cH), y = pad.top + cH - barH;
     const grad = ctx.createLinearGradient(x, y, x, y + barH); grad.addColorStop(0, '#9b59b6'); grad.addColorStop(1, '#6c3483');
     ctx.fillStyle = grad; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.roundRect(x, y, barW, barH, 3); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.fillStyle = '#8892a8'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
-    ctx.fillText(key, x + barW / 2, H - pad.bottom + 16); ctx.fillText(counts[key], x + barW / 2, y - 6);
+    ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(key, x + barW / 2, H - pad.bottom + 18); ctx.fillText(counts[key], x + barW / 2, y - 8);
   });
   ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'left'; ctx.fillText('奇偶比分布 (奇:偶)', pad.left + 5, 20);
 }
 
 function drawSumChart() {
   const canvas = $('#sum-chart');
-  const { ctx, W, H } = setupCanvas(canvas, 240);
+  const { ctx, W, H } = setupCanvas(canvas, 280);
   const sums = DLT_HISTORY.map(d => d.front.reduce((a, b) => a + b, 0));
   const ranges = [{ label: '<50', min: 0, max: 50 }, { label: '51-75', min: 51, max: 75 }, { label: '76-100', min: 76, max: 100 }, { label: '101-125', min: 101, max: 125 }, { label: '>125', min: 126, max: 999 }];
   ranges.forEach(r => { r.count = sums.filter(s => s >= r.min && s <= r.max).length; });
   const maxCount = Math.max(...ranges.map(r => r.count));
-  const pad = { top: 35, bottom: 45, left: 20, right: 20 };
+  const pad = { top: 35, bottom: 60, left: 35, right: 20 };
   const cW = W - pad.left - pad.right, cH = H - pad.top - pad.bottom;
   const slotW = cW / ranges.length;
-  const barW = Math.max(20, Math.min(55, slotW - 12));
+  const barW = Math.max(25, Math.min(55, slotW - 20));
+  // Y-axis
+  for (let step = 0; step <= 4; step++) {
+    const yLine = pad.top + cH - (step / 4) * cH;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, yLine); ctx.lineTo(W - pad.right, yLine); ctx.stroke();
+    ctx.fillStyle = '#5a6478'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxCount * step / 4), pad.left - 5, yLine + 3);
+  }
   ranges.forEach((r, i) => {
     const x = pad.left + slotW * i + (slotW - barW) / 2;
     const barH = Math.max(2, (r.count / (maxCount || 1)) * cH), y = pad.top + cH - barH;
     const grad = ctx.createLinearGradient(x, y, x, y + barH); grad.addColorStop(0, '#00d2ff'); grad.addColorStop(1, '#0098db');
     ctx.fillStyle = grad; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.roundRect(x, y, barW, barH, 3); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.fillStyle = '#8892a8'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
-    ctx.fillText(r.label, x + barW / 2, H - pad.bottom + 16); ctx.fillText(r.count, x + barW / 2, y - 6);
+    ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(r.label, x + barW / 2, H - pad.bottom + 20); ctx.fillText(r.count, x + barW / 2, y - 8);
   });
   ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'left'; ctx.fillText('前区和值分布', pad.left + 5, 20);
 }
