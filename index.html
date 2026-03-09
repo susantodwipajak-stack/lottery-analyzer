@@ -166,6 +166,47 @@
         </div>
       </div>
     </div>
+
+    <!-- AI Recommendation System -->
+    <div class="card" style="border-left:3px solid var(--gold);">
+      <div class="card-title">
+        <span class="icon">🤖</span> AI 投注推荐方案
+        <div style="margin-left:auto;display:flex;gap:0.5rem;">
+          <button class="btn btn-primary btn-sm" id="btn-gen-fb-picks">🎯 生成推荐</button>
+          <button class="btn btn-secondary btn-sm" id="btn-compare-fb">📊 对比开奖</button>
+        </div>
+      </div>
+      <div id="fb-picks-status" style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;">
+        💡 基于赔率分析、凯利指数、期望值等多维度生成投注建议
+      </div>
+      <div id="fb-picks-container">
+        <!-- Dynamic recommendation cards -->
+      </div>
+    </div>
+
+    <!-- Prediction Archive -->
+    <div class="card">
+      <div class="card-title">
+        <span class="icon">📁</span> 推荐存档
+        <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted);" id="fb-archive-count">0 条记录</span>
+      </div>
+      <div id="fb-archive-list" style="max-height:300px;overflow-y:auto;">
+        <div class="empty-state">
+          <div class="empty-state-icon">📁</div>
+          <div class="empty-state-title">暂无存档</div>
+          <div class="empty-state-desc">生成推荐后自动存档</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strategy Performance -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span> 策略表现 <span
+          style="margin-left:auto;font-size:0.72rem;color:var(--text-muted);">自动进化中</span></div>
+      <div id="fb-strategy-perf">
+        <p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:1rem;">对比开奖后自动更新策略表现</p>
+      </div>
+    </div>
   </section>
 
   <!-- ========== TAB 2: 大乐透深度分析 ========== -->
