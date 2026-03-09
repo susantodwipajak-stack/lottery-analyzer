@@ -198,31 +198,42 @@ function renderMatchList(matches) {
 async function fetchFootballMatches() {
   const btn = $('#btn-fetch-matches'), status = $('#fb-status');
   setButtonLoading(btn, true);
-  status.innerHTML = '<span style="color:var(--cyan)">⏳ 正在从体彩网获取赛事...</span>';
+  status.innerHTML = '<span style="color:var(--cyan)">⏳ 正在获取赛事数据...</span>';
   const apis = [
     {
-      name: '体彩官网(传统足彩)', url: 'https://webapi.sporttery.cn/gateway/lottery/getFootBallMatchV1.qry?param=90,0&sellStatus=0&termLimits=10',
+      name: '预取数据', url: 'data/matches.json',
       extract: json => {
-        if (!json?.value?.matchInfoList) return null;
-        // Update period chips
-        const termList = json.value?.termList || [];
-        renderPeriodChips(termList);
-        return json.value.matchInfoList.map((m, i) => ({
-          league: m.leagueAbbName || m.leagueName || '未知',
-          home: m.homeTeamAbbName || m.homeTeamName || '主队',
-          away: m.awayTeamAbbName || m.awayTeamName || '客队',
-          date: m.matchDate || m.matchTime?.substring(0, 10) || '--',
-          oddsW: parseFloat(m.spWin) || parseFloat(m.had?.a) || 0,
-          oddsD: parseFloat(m.spDraw) || parseFloat(m.had?.d) || 0,
-          oddsL: parseFloat(m.spLose) || parseFloat(m.had?.h) || 0
-        }));
+        if (!json?.matches?.length) return null;
+        const ts = json.lastUpdate ? new Date(json.lastUpdate).toLocaleString('zh-CN') : '';
+        if (ts) {
+          const deadline = $('#cz-deadline');
+          if (deadline) deadline.textContent = '数据更新时间：' + ts;
+        }
+        return json.matches;
       }
     },
     {
-      name: '体彩竞彩', url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
-      extract: json => { if (!json?.value?.matchInfoList) return null; return json.value.matchInfoList.map(m => ({ league: m.leagueAbbName || m.leagueName || '未知', home: m.homeTeamAbbName || m.homeTeamName, away: m.awayTeamAbbName || m.awayTeamName, date: m.matchDate || '--', oddsW: parseFloat(m.had?.a) || 0, oddsD: parseFloat(m.had?.d) || 0, oddsL: parseFloat(m.had?.h) || 0 })); }
-    },
-    { name: '本地数据', url: 'data/matches.json', extract: json => json?.matches || null }
+      name: '体彩竞彩(直连)', url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
+      extract: json => {
+        if (!json?.value?.matchInfoList) return null;
+        const matches = [];
+        for (const group of json.value.matchInfoList) {
+          const subs = group.subMatchList || [group];
+          for (const m of subs) {
+            matches.push({
+              league: m.leagueAbbName || m.leagueName || '未知',
+              home: m.homeTeamAbbName || m.homeTeamAllName || '主队',
+              away: m.awayTeamAbbName || m.awayTeamAllName || '客队',
+              date: m.matchDate || group.businessDate || '--',
+              oddsW: parseFloat(m.had?.a) || 0,
+              oddsD: parseFloat(m.had?.d) || 0,
+              oddsL: parseFloat(m.had?.h) || 0
+            });
+          }
+        }
+        return matches.filter(m => m.home !== '主队' && (m.oddsW > 0 || m.oddsD > 0));
+      }
+    }
   ];
   let matches = null;
   for (const api of apis) {

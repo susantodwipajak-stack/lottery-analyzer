@@ -1,0 +1,126 @@
+{
+  "lastUpdate": "2026-03-09T18:29:25.985Z",
+  "totalMatches": 10,
+  "matches": [
+    {
+      "matchNum": 1003,
+      "league": "英足总杯",
+      "home": "西汉姆联",
+      "away": "布伦特",
+      "date": "2026-03-10",
+      "time": "03:30:00",
+      "oddsW": 2,
+      "oddsD": 3.35,
+      "oddsL": 3.02,
+      "status": 2
+    },
+    {
+      "matchNum": 1004,
+      "league": "意甲",
+      "home": "拉齐奥",
+      "away": "萨索洛",
+      "date": "2026-03-10",
+      "time": "03:45:00",
+      "oddsW": 3.15,
+      "oddsD": 2.85,
+      "oddsL": 2.17,
+      "status": 2
+    },
+    {
+      "matchNum": 1005,
+      "league": "法乙",
+      "home": "敦刻尔克",
+      "away": "兰斯",
+      "date": "2026-03-10",
+      "time": "03:45:00",
+      "oddsW": 2.06,
+      "oddsD": 2.95,
+      "oddsL": 3.28,
+      "status": 2
+    },
+    {
+      "matchNum": 1006,
+      "league": "西甲",
+      "home": "西班牙人",
+      "away": "奥维耶多",
+      "date": "2026-03-10",
+      "time": "04:00:00",
+      "oddsW": 4.6,
+      "oddsD": 3.35,
+      "oddsL": 1.63,
+      "status": 2
+    },
+    {
+      "matchNum": 1007,
+      "league": "葡超",
+      "home": "通德拉",
+      "away": "里奥阿维",
+      "date": "2026-03-10",
+      "time": "04:15:00",
+      "oddsW": 3.3,
+      "oddsD": 3.06,
+      "oddsL": 2,
+      "status": 2
+    },
+    {
+      "matchNum": 2001,
+      "league": "女亚洲杯",
+      "home": "印度女",
+      "away": "中国台女",
+      "date": "2026-03-10",
+      "time": "17:00:00",
+      "oddsW": 1.34,
+      "oddsD": 4,
+      "oddsL": 7.5,
+      "status": 2
+    },
+    {
+      "matchNum": 2005,
+      "league": "欧冠",
+      "home": "加拉塔萨",
+      "away": "利物浦",
+      "date": "2026-03-11",
+      "time": "01:45:00",
+      "oddsW": 1.61,
+      "oddsD": 3.9,
+      "oddsL": 3.98,
+      "status": 2
+    },
+    {
+      "matchNum": 2007,
+      "league": "欧冠",
+      "home": "亚特兰大",
+      "away": "拜仁",
+      "date": "2026-03-11",
+      "time": "04:00:00",
+      "oddsW": 1.53,
+      "oddsD": 4.15,
+      "oddsL": 4.25,
+      "status": 2
+    },
+    {
+      "matchNum": 2008,
+      "league": "欧冠",
+      "home": "马竞",
+      "away": "热刺",
+      "date": "2026-03-11",
+      "time": "04:00:00",
+      "oddsW": 5.2,
+      "oddsD": 4.05,
+      "oddsL": 1.45,
+      "status": 2
+    },
+    {
+      "matchNum": 2009,
+      "league": "欧冠",
+      "home": "纽卡斯尔",
+      "away": "巴萨",
+      "date": "2026-03-11",
+      "time": "04:00:00",
+      "oddsW": 2.08,
+      "oddsD": 3.7,
+      "oddsL": 2.64,
+      "status": 2
+    }
+  ]
+}

@@ -2,7 +2,9 @@ name: 📊 每日自动分析
 
 on:
   schedule:
-    # 每天 UTC 13:30 = 北京时间 21:30（大乐透开奖后）
+    # 每天 UTC 09:00 = 北京17:00（足彩赛事数据更新）
+    - cron: '0 9 * * *'
+    # 每天 UTC 13:30 = 北京21:30（大乐透开奖后）
     - cron: '30 13 * * *'
   workflow_dispatch:
     # 支持手动触发
@@ -22,6 +24,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: ⚽ 抓取足彩赛事数据
+        run: node scripts/fetch-matches.js
+
       - name: 📥 抓取开奖数据
         run: node scripts/fetch-data.js
 
@@ -33,5 +38,5 @@ jobs:
           git config user.name "Lottery Bot 🤖"
           git config user.email "bot@github.com"
           git add data/
-          git diff --staged --quiet || git commit -m "📊 自动更新 $(date +%Y-%m-%d) | 第$(cat data/analysis.json | grep -o '\"nextIssue\":\"[^\"]*\"' | head -1 | cut -d'"' -f4)期预测"
+          git diff --staged --quiet || git commit -m "📊 自动更新 $(date +%Y-%m-%d) | ⚽$(cat data/matches.json 2>/dev/null | grep -o '"totalMatches":[0-9]*' | head -1 | cut -d: -f2 || echo 0)场赛事"
           git push
