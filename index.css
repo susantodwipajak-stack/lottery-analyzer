@@ -1879,3 +1879,439 @@ body {
   margin-right: 6px;
   vertical-align: middle;
 }
+
+/* =============================================
+   VISUAL DESIGN OVERHAUL V3.0
+   Premium Glassmorphism + Ambient Glow
+   ============================================= */
+
+/* --- Ambient Background Glow Orbs --- */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(100px);
+  opacity: 0.35;
+}
+
+body::before {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(0, 210, 255, 0.15), transparent 70%);
+  top: -200px;
+  left: -150px;
+  animation: floatOrb1 20s ease-in-out infinite;
+}
+
+body::after {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(138, 43, 226, 0.12), transparent 70%);
+  bottom: -100px;
+  right: -100px;
+  animation: floatOrb2 25s ease-in-out infinite;
+}
+
+@keyframes floatOrb1 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(80px, 40px) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-30px, 80px) scale(0.95);
+  }
+}
+
+@keyframes floatOrb2 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(-60px, -50px) scale(1.15);
+  }
+
+  66% {
+    transform: translate(40px, -30px) scale(0.9);
+  }
+}
+
+/* --- Enhanced Header --- */
+.app-header {
+  padding: 3rem 1rem 1.5rem;
+  position: relative;
+}
+
+.app-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(600px, 90%);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), rgba(138, 43, 226, 0.8), var(--gold), transparent);
+  border-radius: 2px;
+  animation: headerBorderGlow 4s ease infinite;
+}
+
+@keyframes headerBorderGlow {
+
+  0%,
+  100% {
+    opacity: 0.6;
+    filter: blur(0);
+  }
+
+  50% {
+    opacity: 1;
+    filter: blur(1px);
+  }
+}
+
+.app-header h1 {
+  font-size: 2.2rem;
+  letter-spacing: 3px;
+  filter: drop-shadow(0 0 20px rgba(0, 210, 255, 0.2));
+}
+
+.app-header .subtitle {
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  margin-top: 0.5rem;
+  background: linear-gradient(90deg, var(--text-secondary), var(--text-muted), var(--text-secondary));
+  background-size: 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* --- Header Status Badges Upgrade --- */
+.header-stat {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.header-stat:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+  border-color: rgba(0, 210, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.realtime-status {
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.12), rgba(39, 174, 96, 0.04)) !important;
+  border-color: rgba(39, 174, 96, 0.25) !important;
+}
+
+.realtime-status.synced {
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.12), rgba(0, 210, 255, 0.04)) !important;
+  border-color: rgba(0, 210, 255, 0.25) !important;
+}
+
+/* --- Premium Tab Navigation --- */
+.tab-nav {
+  gap: 0.35rem;
+  padding: 0.6rem 1rem;
+  background: rgba(10, 14, 26, 0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.tab-btn {
+  padding: 0.65rem 1.4rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 0.82rem;
+  letter-spacing: 0.3px;
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tab-btn:hover {
+  background: rgba(0, 210, 255, 0.06);
+  border-color: rgba(0, 210, 255, 0.15);
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.15), rgba(138, 43, 226, 0.1));
+  border-color: rgba(0, 210, 255, 0.3);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(0, 210, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active::before {
+  opacity: 0;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  background: var(--cyan);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(0, 210, 255, 0.5);
+}
+
+/* --- Deeper Glassmorphism Cards --- */
+.card {
+  background: linear-gradient(165deg, rgba(22, 32, 58, 0.75), rgba(15, 22, 42, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+
+/* Card Title Accent */
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.card-title .icon {
+  font-size: 1.15rem;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.15));
+}
+
+/* --- 3D Number Balls --- */
+.num-ball {
+  background: linear-gradient(145deg, rgba(50, 60, 90, 0.8), rgba(30, 38, 65, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  font-weight: 700;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.num-ball.selected {
+  background: linear-gradient(145deg, var(--cyan), var(--cyan-dark));
+  border-color: rgba(0, 210, 255, 0.4);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(0, 210, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.num-ball.back-ball.selected {
+  background: linear-gradient(145deg, #9b59b6, #7d3c98);
+  border-color: rgba(155, 89, 182, 0.4);
+  box-shadow: 0 0 16px rgba(155, 89, 182, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* --- Enhanced Buttons --- */
+.btn-primary {
+  background: linear-gradient(135deg, #00b4d8, #0098db);
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 180, 216, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transform: skewX(-15deg);
+  transition: left 0.6s ease;
+}
+
+.btn-primary:hover::after {
+  left: 120%;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 4px 20px rgba(0, 180, 216, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-red {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.2);
+}
+
+.btn-red:hover {
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
+}
+
+/* --- Data Tables --- */
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.data-table thead th {
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.08), rgba(138, 43, 226, 0.05));
+  border-bottom: 1px solid rgba(0, 210, 255, 0.15);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 0.7rem 0.5rem;
+}
+
+.data-table tbody tr {
+  transition: background 0.2s ease;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(0, 210, 255, 0.04);
+}
+
+.data-table tbody td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 0.6rem 0.5rem;
+}
+
+/* --- Form Inputs Enhanced --- */
+input[type="number"],
+input[type="text"],
+select {
+  background: linear-gradient(135deg, rgba(12, 18, 35, 0.95), rgba(18, 25, 45, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  transition: all 0.3s ease;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus,
+select:focus {
+  border-color: rgba(0, 210, 255, 0.4);
+  box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.08), 0 0 16px rgba(0, 210, 255, 0.06);
+  background: linear-gradient(135deg, rgba(15, 22, 42, 0.98), rgba(20, 28, 50, 0.95));
+}
+
+/* --- Scrollbar Refined --- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(0, 210, 255, 0.2), rgba(138, 43, 226, 0.15));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(0, 210, 255, 0.35), rgba(138, 43, 226, 0.25));
+}
+
+/* --- Checkbox Enhanced --- */
+input[type="checkbox"] {
+  accent-color: var(--cyan);
+}
+
+/* --- Selection Color --- */
+::selection {
+  background: rgba(0, 210, 255, 0.25);
+  color: #fff;
+}
+
+/* --- Enhanced Prize Tags --- */
+.prize-tag {
+  border-radius: 6px;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.65rem;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.prize-tag.level-1 {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 180, 0, 0.1));
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
+}
+
+/* --- Container Max Width --- */
+.tab-content {
+  max-width: 1100px;
+}
+
+/* --- Footer Disclaimer --- */
+.disclaimer {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+  background: transparent;
+}
+
+/* --- Responsive Visual Polish --- */
+@media (max-width: 600px) {
+  .app-header h1 {
+    font-size: 1.6rem;
+    letter-spacing: 1.5px;
+  }
+
+  .tab-btn {
+    padding: 0.55rem 0.9rem;
+    font-size: 0.75rem;
+  }
+
+  .card {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  body::before {
+    width: 300px;
+    height: 300px;
+    opacity: 0.25;
+  }
+
+  body::after {
+    width: 250px;
+    height: 250px;
+    opacity: 0.2;
+  }
+}
