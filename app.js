@@ -1169,7 +1169,7 @@ function drawOddEvenChart() {
     const barH = Math.max(2, (counts[key] / maxCount) * cH), y = pad.top + cH - barH;
     const grad = ctx.createLinearGradient(x, y, x, y + barH); grad.addColorStop(0, '#9b59b6'); grad.addColorStop(1, '#6c3483');
     ctx.fillStyle = grad; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.roundRect(x, y, barW, barH, 3); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#8892a8'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
     ctx.fillText(key, x + barW / 2, H - pad.bottom + 18); ctx.fillText(counts[key], x + barW / 2, y - 8);
   });
   ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'left'; ctx.fillText('奇偶比分布 (奇:偶)', pad.left + 5, 20);
@@ -1179,7 +1179,7 @@ function drawSumChart() {
   const canvas = $('#sum-chart');
   const { ctx, W, H } = setupCanvas(canvas, 280);
   const sums = DLT_HISTORY.map(d => d.front.reduce((a, b) => a + b, 0));
-  const ranges = [{ label: '<50', min: 0, max: 50 }, { label: '51-75', min: 51, max: 75 }, { label: '76-100', min: 76, max: 100 }, { label: '101-125', min: 101, max: 125 }, { label: '>125', min: 126, max: 999 }];
+  const ranges = [{ label: '<50', min: 0, max: 50 }, { label: '51~75', min: 51, max: 75 }, { label: '76~100', min: 76, max: 100 }, { label: '101~125', min: 101, max: 125 }, { label: '>125', min: 126, max: 999 }];
   ranges.forEach(r => { r.count = sums.filter(s => s >= r.min && s <= r.max).length; });
   const maxCount = Math.max(...ranges.map(r => r.count));
   const pad = { top: 35, bottom: 60, left: 35, right: 20 };
@@ -1199,8 +1199,8 @@ function drawSumChart() {
     const barH = Math.max(2, (r.count / (maxCount || 1)) * cH), y = pad.top + cH - barH;
     const grad = ctx.createLinearGradient(x, y, x, y + barH); grad.addColorStop(0, '#00d2ff'); grad.addColorStop(1, '#0098db');
     ctx.fillStyle = grad; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.roundRect(x, y, barW, barH, 3); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'center';
-    ctx.fillText(r.label, x + barW / 2, H - pad.bottom + 20); ctx.fillText(r.count, x + barW / 2, y - 8);
+    ctx.fillStyle = '#8892a8'; ctx.font = '9px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(r.label, x + barW / 2, H - pad.bottom + 18); ctx.fillText(r.count, x + barW / 2, y - 8);
   });
   ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'left'; ctx.fillText('前区和值分布', pad.left + 5, 20);
 }
