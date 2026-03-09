@@ -1533,7 +1533,7 @@ function renderPredHistory() {
   if (!list) return;
   if (preds.length === 0) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔮</div><div class="empty-state-title">暂无预测记录</div><div class="empty-state-desc">点击「生成预测」开始你的第一次预测</div></div>'; return; }
   let html = '';
-  preds.forEach(record => {
+  preds.forEach((record, idx) => {
     const status = record.compared ? '✅ 已对比' : '⏳ 待对比';
     const statusColor = record.compared ? 'var(--green)' : 'var(--yellow)';
     let bestHit = '';
@@ -1541,15 +1541,45 @@ function renderPredHistory() {
       const best = record.hits.reduce((a, b) => (a.frontHits + a.backHits) > (b.frontHits + b.backHits) ? a : b);
       bestHit = ` | 最佳: ${best.frontHits}+${best.backHits} ${best.level}`;
     }
+    // Build numbers section
+    let numsHTML = '';
+    if (record.predictions && record.predictions.length > 0) {
+      numsHTML = '<div class="pred-nums-panel" id="pred-nums-' + idx + '" style="display:none;margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.04);">';
+      record.predictions.forEach((p, pi) => {
+        const hitInfo = record.hits ? record.hits[pi] : null;
+        const result = record.result;
+        numsHTML += `<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.3rem;flex-wrap:wrap;">
+          <span style="font-size:0.68rem;color:var(--text-muted);min-width:52px;white-space:nowrap;">${p.label || '策略' + (pi + 1)}</span>
+          ${p.front.map(n => makePredBall(n, 'linear-gradient(135deg,#e74c3c,#c0392b)', result ? result.front.includes(n) : false)).join('')}
+          <span style="color:var(--text-muted);margin:0 1px;font-size:0.7rem;">+</span>
+          ${p.back.map(n => makePredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.back.includes(n) : false)).join('')}
+          ${hitInfo ? `<span style="font-size:0.65rem;color:${hitInfo.level !== '未中奖' ? 'var(--gold)' : 'var(--text-muted)'};margin-left:0.3rem;">${hitInfo.frontHits}+${hitInfo.backHits}</span>` : ''}
+        </div>`;
+      });
+      numsHTML += '</div>';
+    }
     html += `<div style="padding:0.5rem;background:rgba(10,14,26,0.3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:0.3rem;font-size:0.8rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <span><strong>第 ${record.targetIssue} 期</strong> <span style="color:var(--text-muted);font-size:0.7rem;">${new Date(record.createdAt).toLocaleDateString()}</span></span>
-        <span style="color:${statusColor};font-size:0.75rem;">${status}${bestHit}</span>
+        <span style="display:flex;align-items:center;gap:0.5rem;">
+          <span style="color:${statusColor};font-size:0.75rem;">${status}${bestHit}</span>
+          ${record.predictions?.length ? `<span style="cursor:pointer;font-size:0.7rem;color:var(--cyan);white-space:nowrap;" onclick="togglePredNums(${idx})">📋 查看号码 ▸</span>` : ''}
+        </span>
       </div>
       ${record.result ? `<div style="margin-top:0.3rem;font-size:0.75rem;color:var(--text-secondary);">开奖: ${record.result.front.map(n => String(n).padStart(2, '0')).join(' ')} + ${record.result.back.map(n => String(n).padStart(2, '0')).join(' ')}</div>` : ''}
+      ${numsHTML}
     </div>`;
   });
   list.innerHTML = html;
+}
+function togglePredNums(idx) {
+  const panel = document.getElementById('pred-nums-' + idx);
+  if (!panel) return;
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  // Update toggle text
+  const btn = panel.parentElement?.querySelector('[onclick*="togglePredNums"]');
+  if (btn) btn.textContent = isHidden ? '📋 收起号码 ▾' : '📋 查看号码 ▸';
 }
 
 function renderPerfDashboard() {
