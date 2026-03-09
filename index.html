@@ -51,23 +51,48 @@
 
   <!-- ========== TAB 1: 竞彩足球深度分析 ========== -->
   <section class="tab-content active" id="tab-football">
-    <!-- Latest Football Results Banner -->
-    <div id="fb-latest-banner" class="card" style="border-left:3px solid var(--green);">
-      <div class="card-title" style="margin-bottom:0.5rem;"><span class="icon">📢</span> 最新赛事动态</div>
-      <div id="fb-latest-content" style="font-size:0.85rem;color:var(--text-secondary);">
-        <p>💡 点击「载入示例数据」查看示例赛事分析，或手动输入今日赛事赔率开始分析。</p>
+    <!-- Match Data Source -->
+    <div class="card" style="border-left:3px solid var(--green);">
+      <div class="card-title" style="margin-bottom:0.5rem;">
+        <span class="icon">📢</span> 竞彩足球赛事
+        <div style="margin-left:auto;display:flex;gap:0.5rem;">
+          <button class="btn btn-primary btn-sm" id="btn-fetch-matches">🔄 拉取今日赛事</button>
+          <button class="btn btn-secondary btn-sm" id="btn-load-sample">📥 载入示例</button>
+        </div>
+      </div>
+      <div id="fb-status" style="font-size:0.78rem;color:var(--text-muted);">
+        💡 点击「拉取今日赛事」获取官方竞彩数据，或「载入示例」查看演示
       </div>
     </div>
 
-    <!-- Match Input Area -->
-    <div class="card">
-      <div class="card-title"><span class="icon">📋</span> 比赛赔率输入</div>
+    <!-- Match List (official lottery style) -->
+    <div class="card" id="match-list-card">
+      <div class="card-title">
+        <span class="icon">⚽</span> 比赛列表
+        <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted);" id="match-count-label">0 场比赛</span>
+      </div>
+      <!-- Table-style header -->
+      <div class="match-table-header">
+        <span class="mth-col-num">编号</span>
+        <span class="mth-col-league">赛事</span>
+        <span class="mth-col-time">时间</span>
+        <span class="mth-col-teams">对阵</span>
+        <span class="mth-col-odds">胜</span>
+        <span class="mth-col-odds">平</span>
+        <span class="mth-col-odds">负</span>
+      </div>
       <div id="match-list">
-        <!-- Dynamic match entries will be inserted here -->
+        <!-- Dynamic match rows rendered here -->
+        <div class="empty-state" id="match-empty">
+          <div class="empty-state-icon">⚽</div>
+          <div class="empty-state-title">暂无赛事数据</div>
+          <div class="empty-state-desc">拉取今日赛事或载入示例数据</div>
+        </div>
       </div>
       <div class="flex gap-1 mt-1">
-        <button class="btn btn-ghost btn-sm" id="btn-add-match">+ 添加比赛</button>
-        <button class="btn btn-ghost btn-sm" id="btn-load-sample">📥 载入示例数据</button>
+        <button class="btn btn-ghost btn-sm" id="btn-add-match">+ 手动添加</button>
+        <button class="btn btn-ghost btn-sm" id="btn-select-all">☑ 全选热门</button>
+        <button class="btn btn-ghost btn-sm" id="btn-clear-selection">✕ 清空选择</button>
       </div>
     </div>
 
@@ -78,7 +103,7 @@
         <div class="form-group">
           <label class="form-label">过关方式</label>
           <div class="parlay-options" id="parlay-options">
-            <!-- Dynamically generated based on match count -->
+            <span style="font-size:0.8rem;color:var(--text-muted)">请先选择比赛</span>
           </div>
         </div>
         <div class="form-group">

@@ -158,50 +158,105 @@ $$('.tab-btn').forEach(btn => {
 // SECTION 1: 竞彩足球深度分析
 // =============================================
 let matchCount = 0;
+let matchData = [];
 
-function addMatch(teamName, oddsW, oddsD, oddsL) {
+function renderMatchRow(match) {
   matchCount++;
   const id = matchCount;
-  const div = document.createElement('div');
-  div.className = 'match-entry'; div.id = 'match-' + id;
-  div.innerHTML = `
-    <div class="match-header">
-      <span class="match-label">比赛 ${id}</span>
-      <button class="match-remove" onclick="removeMatch(${id})">✕</button>
-    </div>
-    <div class="form-group">
-      <input type="text" class="form-input" id="team-${id}" placeholder="队伍描述（可选）" value="${teamName || ''}">
-    </div>
-    <div class="odds-grid">
-      <div class="odds-item"><label>胜 (3)</label><input type="number" step="0.01" min="1" id="odds-w-${id}" value="${oddsW || ''}" placeholder="赔率"><div class="odds-check"><input type="checkbox" id="sel-w-${id}"> <label style="font-size:0.7rem;color:var(--text-muted)">选</label></div></div>
-      <div class="odds-item"><label>平 (1)</label><input type="number" step="0.01" min="1" id="odds-d-${id}" value="${oddsD || ''}" placeholder="赔率"><div class="odds-check"><input type="checkbox" id="sel-d-${id}"> <label style="font-size:0.7rem;color:var(--text-muted)">选</label></div></div>
-      <div class="odds-item"><label>负 (0)</label><input type="number" step="0.01" min="1" id="odds-l-${id}" value="${oddsL || ''}" placeholder="赔率"><div class="odds-check"><input type="checkbox" id="sel-l-${id}"> <label style="font-size:0.7rem;color:var(--text-muted)">选</label></div></div>
-    </div>`;
-  $('#match-list').appendChild(div);
+  match._id = id;
+  const row = document.createElement('div');
+  row.className = 'match-row'; row.id = 'match-' + id; row.dataset.matchId = id;
+  const league = match.league || '友谊赛', time = match.time || '--:--';
+  const home = match.home || '主队', away = match.away || '客队';
+  const oddsW = match.oddsW || 0, oddsD = match.oddsD || 0, oddsL = match.oddsL || 0;
+  row.innerHTML = `
+    <span class="mr-num">${String(id).padStart(3, '0')}</span>
+    <span class="mr-league" title="${league}">${league}</span>
+    <span class="mr-time">${time}</span>
+    <span class="mr-teams">${home}<span class="vs">vs</span>${away}</span>
+    <div class="odds-toggle win" data-match="${id}" data-type="w" data-odds="${oddsW}" onclick="toggleOdds(this)"><span class="odds-label">胜</span><span class="odds-value">${oddsW ? oddsW.toFixed(2) : '--'}</span></div>
+    <div class="odds-toggle draw" data-match="${id}" data-type="d" data-odds="${oddsD}" onclick="toggleOdds(this)"><span class="odds-label">平</span><span class="odds-value">${oddsD ? oddsD.toFixed(2) : '--'}</span></div>
+    <div class="odds-toggle loss" data-match="${id}" data-type="l" data-odds="${oddsL}" onclick="toggleOdds(this)"><span class="odds-label">负</span><span class="odds-value">${oddsL ? oddsL.toFixed(2) : '--'}</span></div>`;
+  return row;
+}
+function toggleOdds(el) {
+  el.classList.toggle('selected');
+  const row = el.closest('.match-row');
+  if (row) row.classList.toggle('has-selection', row.querySelectorAll('.odds-toggle.selected').length > 0);
   updateParlayOptions();
 }
-
+function renderMatchList(matches) {
+  const list = $('#match-list'); list.innerHTML = ''; matchCount = 0; matchData = matches;
+  if (matches.length === 0) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚽</div><div class="empty-state-title">暂无赛事数据</div><div class="empty-state-desc">拉取今日赛事或载入示例</div></div>'; return; }
+  matches.forEach(m => list.appendChild(renderMatchRow(m)));
+  const label = $('#match-count-label'); if (label) label.textContent = matches.length + ' 场比赛';
+  updateParlayOptions();
+}
+async function fetchFootballMatches() {
+  const btn = $('#btn-fetch-matches'), status = $('#fb-status');
+  setButtonLoading(btn, true);
+  status.innerHTML = '<span style="color:var(--cyan)">⏳ 正在获取竞彩赛事...</span>';
+  const apis = [
+    {
+      name: '体彩网', url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
+      extract: json => { if (!json?.value?.matchInfoList) return null; return json.value.matchInfoList.map(m => ({ league: m.leagueAbbName || m.leagueName || '未知', home: m.homeTeamAbbName || m.homeTeamName, away: m.awayTeamAbbName || m.awayTeamName, time: m.matchTime ? m.matchTime.substring(11, 16) : '--:--', oddsW: parseFloat(m.had?.a) || 0, oddsD: parseFloat(m.had?.d) || 0, oddsL: parseFloat(m.had?.h) || 0 })); }
+    },
+    { name: '本地数据', url: 'data/matches.json', extract: json => json?.matches || null }
+  ];
+  let matches = null;
+  for (const api of apis) {
+    try { const resp = await fetch(api.url, { signal: AbortSignal.timeout(10000) }); if (!resp.ok) continue; const json = await resp.json(); matches = api.extract(json); if (matches?.length > 0) { status.innerHTML = `<span style="color:var(--green)">✅ 通过${api.name}获取 ${matches.length} 场赛事</span>`; break; } } catch { continue; }
+  }
+  if (!matches?.length) { status.innerHTML = '<span style="color:var(--orange)">⚠️ 无法获取实时赛事，已载入示例</span>'; loadSampleMatches(); setButtonLoading(btn, false); return; }
+  renderMatchList(matches); setButtonLoading(btn, false); showToast(`获取 ${matches.length} 场赛事`, 'success');
+}
+function loadSampleMatches() {
+  renderMatchList([
+    { league: '英超', home: '曼城', away: '利物浦', time: '20:30', oddsW: 2.15, oddsD: 3.40, oddsL: 3.10 },
+    { league: '西甲', home: '巴塞罗那', away: '皇家马德里', time: '22:00', oddsW: 1.85, oddsD: 3.60, oddsL: 4.20 },
+    { league: '德甲', home: '拜仁慕尼黑', away: '多特蒙德', time: '21:30', oddsW: 1.55, oddsD: 4.10, oddsL: 5.50 },
+    { league: '意甲', home: 'AC米兰', away: '国际米兰', time: '21:00', oddsW: 2.80, oddsD: 3.20, oddsL: 2.45 },
+    { league: '法甲', home: '巴黎圣日耳曼', away: '马赛', time: '19:00', oddsW: 1.40, oddsD: 4.60, oddsL: 7.50 },
+    { league: '英超', home: '阿森纳', away: '切尔西', time: '23:00', oddsW: 1.90, oddsD: 3.50, oddsL: 3.80 },
+    { league: '欧冠', home: '皇马', away: '曼城', time: '03:00', oddsW: 2.30, oddsD: 3.30, oddsL: 2.90 },
+    { league: '中超', home: '上海海港', away: '北京国安', time: '19:35', oddsW: 1.75, oddsD: 3.40, oddsL: 4.50 }
+  ]);
+  showToast('示例赛事已载入（8场）', 'success');
+  $('#fb-status').innerHTML = '<span style="color:var(--text-secondary)">📋 已载入 8 场示例赛事，点击赔率按钮选择投注</span>';
+}
+function addMatch(teamName, oddsW, oddsD, oddsL) {
+  matchCount++; const id = matchCount;
+  const div = document.createElement('div'); div.className = 'match-entry'; div.id = 'match-' + id;
+  div.innerHTML = `<div class="match-header"><span class="match-label">比赛 ${id}</span><button class="match-remove" onclick="removeMatch(${id})">✕</button></div><div class="form-group"><input type="text" class="form-input" id="team-${id}" placeholder="队伍" value="${teamName || ''}"></div><div class="odds-grid"><div class="odds-item"><label>胜</label><input type="number" step="0.01" min="1" id="odds-w-${id}" value="${oddsW || ''}" placeholder="赔率"><div class="odds-check"><input type="checkbox" id="sel-w-${id}"><label style="font-size:0.7rem;color:var(--text-muted)">选</label></div></div><div class="odds-item"><label>平</label><input type="number" step="0.01" min="1" id="odds-d-${id}" value="${oddsD || ''}" placeholder="赔率"><div class="odds-check"><input type="checkbox" id="sel-d-${id}"><label style="font-size:0.7rem;color:var(--text-muted)">选</label></div></div><div class="odds-item"><label>负</label><input type="number" step="0.01" min="1" id="odds-l-${id}" value="${oddsL || ''}" placeholder="赔率"><div class="odds-check"><input type="checkbox" id="sel-l-${id}"><label style="font-size:0.7rem;color:var(--text-muted)">选</label></div></div></div>`;
+  $('#match-list').appendChild(div); updateParlayOptions();
+}
 function removeMatch(id) { const el = $('#match-' + id); if (el) el.remove(); updateParlayOptions(); }
-
 function getMatches() {
-  const entries = $$('.match-entry'), matches = [];
-  entries.forEach(entry => {
-    const id = entry.id.replace('match-', '');
-    const team = $(`#team-${id}`)?.value || `比赛${id}`;
-    const w = parseFloat($(`#odds-w-${id}`)?.value) || 0;
-    const d = parseFloat($(`#odds-d-${id}`)?.value) || 0;
-    const l = parseFloat($(`#odds-l-${id}`)?.value) || 0;
+  const matches = [];
+  $$('.match-row').forEach(row => {
+    const id = row.dataset.matchId, teams = row.querySelector('.mr-teams')?.textContent || `比赛${id}`;
+    const toggles = row.querySelectorAll('.odds-toggle');
+    const oddsW = parseFloat(toggles[0]?.dataset.odds) || 0, oddsD = parseFloat(toggles[1]?.dataset.odds) || 0, oddsL = parseFloat(toggles[2]?.dataset.odds) || 0;
     const selections = [];
-    if ($(`#sel-w-${id}`)?.checked && w > 0) selections.push({ type: '胜', odds: w });
-    if ($(`#sel-d-${id}`)?.checked && d > 0) selections.push({ type: '平', odds: d });
-    if ($(`#sel-l-${id}`)?.checked && l > 0) selections.push({ type: '负', odds: l });
-    matches.push({ id, team, oddsW: w, oddsD: d, oddsL: l, selections });
+    if (toggles[0]?.classList.contains('selected') && oddsW > 0) selections.push({ type: '胜', odds: oddsW });
+    if (toggles[1]?.classList.contains('selected') && oddsD > 0) selections.push({ type: '平', odds: oddsD });
+    if (toggles[2]?.classList.contains('selected') && oddsL > 0) selections.push({ type: '负', odds: oddsL });
+    matches.push({ id, team: teams, oddsW, oddsD, oddsL, selections });
+  });
+  $$('.match-entry').forEach(entry => {
+    const id = entry.id.replace('match-', ''), team = $(`#team-${id}`)?.value || `比赛${id}`;
+    const w = parseFloat($(`#odds-w-${id}`)?.value) || 0, d = parseFloat($(`#odds-d-${id}`)?.value) || 0, l = parseFloat($(`#odds-l-${id}`)?.value) || 0;
+    const sel = [];
+    if ($(`#sel-w-${id}`)?.checked && w > 0) sel.push({ type: '胜', odds: w });
+    if ($(`#sel-d-${id}`)?.checked && d > 0) sel.push({ type: '平', odds: d });
+    if ($(`#sel-l-${id}`)?.checked && l > 0) sel.push({ type: '负', odds: l });
+    matches.push({ id, team, oddsW: w, oddsD: d, oddsL: l, selections: sel });
   });
   return matches;
 }
 
 function updateParlayOptions() {
-  const n = $$('.match-entry').length;
+  const n = $$('.match-row, .match-entry').length;
   const container = $('#parlay-options');
   if (!container) return;
   container.innerHTML = '';
@@ -315,17 +370,24 @@ function drawOddsChart(data) {
 }
 
 // Event listeners
+$('#btn-fetch-matches').addEventListener('click', fetchFootballMatches);
+$('#btn-load-sample').addEventListener('click', loadSampleMatches);
 $('#btn-add-match').addEventListener('click', () => addMatch('', '', '', ''));
-$('#btn-load-sample').addEventListener('click', () => {
-  $('#match-list').innerHTML = ''; matchCount = 0;
-  addMatch('曼城 vs 利物浦', 2.15, 3.40, 3.10);
-  addMatch('巴萨 vs 皇马', 1.85, 3.60, 4.20);
-  addMatch('拜仁 vs 多特', 1.55, 4.10, 5.50);
-  setTimeout(() => { $('#sel-w-1').checked = true; $('#sel-d-2').checked = true; $('#sel-w-2').checked = true; $('#sel-w-3').checked = true; }, 100);
-  showToast('示例数据已载入', 'success');
+$('#btn-select-all').addEventListener('click', () => {
+  $$('.match-row').forEach(row => {
+    const toggles = row.querySelectorAll('.odds-toggle');
+    let best = null, bestOdds = Infinity;
+    toggles.forEach(t => { const o = parseFloat(t.dataset.odds); if (o > 0 && o < bestOdds) { bestOdds = o; best = t; } });
+    if (best && !best.classList.contains('selected')) { best.classList.add('selected'); row.classList.add('has-selection'); }
+  });
+  updateParlayOptions(); showToast('已选择各场最可能结果', 'info');
+});
+$('#btn-clear-selection').addEventListener('click', () => {
+  $$('.odds-toggle.selected').forEach(t => t.classList.remove('selected'));
+  $$('.match-row.has-selection').forEach(r => r.classList.remove('has-selection'));
+  updateParlayOptions(); showToast('已清空所有选择', 'info');
 });
 $('#btn-analyze-football').addEventListener('click', analyzeFootball);
-addMatch('', '', '', ''); addMatch('', '', '', '');
 
 // =============================================
 // SECTION 2: 大乐透深度分析

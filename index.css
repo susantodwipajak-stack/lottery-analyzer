@@ -481,14 +481,30 @@ body {
   font-size: 0.8rem;
 }
 
-/* --- Match Entry --- */
-.match-entry {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 0.75rem;
+/* --- Match Table (Official Lottery Style) --- */
+.match-table-header {
+  display: grid;
+  grid-template-columns: 50px 70px 70px 1fr 80px 80px 80px;
+  gap: 4px;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.06), rgba(138, 43, 226, 0.03));
+  border-radius: var(--radius-sm);
   margin-bottom: 0.5rem;
-  background: rgba(10, 14, 26, 0.5);
-  transition: all var(--transition-normal);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.match-row {
+  display: grid;
+  grid-template-columns: 50px 70px 70px 1fr 80px 80px 80px;
+  gap: 4px;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  align-items: center;
+  transition: background 0.2s ease;
   animation: slideInLeft 0.3s ease both;
 }
 
@@ -502,6 +518,138 @@ body {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+.match-row:hover {
+  background: rgba(0, 210, 255, 0.03);
+}
+
+.match-row.has-selection {
+  background: rgba(0, 210, 255, 0.04);
+  border-left: 2px solid var(--cyan);
+}
+
+.match-row .mr-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cyan);
+}
+
+.match-row .mr-league {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-row .mr-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.match-row .mr-teams {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-row .mr-teams .vs {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin: 0 0.3rem;
+  font-size: 0.7rem;
+}
+
+/* Odds Toggle Buttons */
+.odds-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.35rem 0.25rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 14, 26, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.odds-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(20, 28, 50, 0.8);
+}
+
+.odds-toggle.selected {
+  border-color: rgba(0, 210, 255, 0.5);
+  background: rgba(0, 210, 255, 0.1);
+  box-shadow: 0 0 8px rgba(0, 210, 255, 0.15);
+}
+
+.odds-toggle.selected.win {
+  border-color: rgba(231, 76, 60, 0.5);
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.odds-toggle.selected.draw {
+  border-color: rgba(46, 204, 113, 0.5);
+  background: rgba(46, 204, 113, 0.1);
+}
+
+.odds-toggle.selected.loss {
+  border-color: rgba(41, 128, 185, 0.5);
+  background: rgba(41, 128, 185, 0.1);
+}
+
+.odds-toggle .odds-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.odds-toggle.selected .odds-value {
+  color: #fff;
+}
+
+.odds-toggle.selected.win .odds-value {
+  color: var(--red);
+}
+
+.odds-toggle.selected.draw .odds-value {
+  color: var(--green);
+}
+
+.odds-toggle.selected.loss .odds-value {
+  color: var(--blue);
+}
+
+.odds-toggle .odds-label {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+/* Manual add match (fallback row) */
+.match-entry {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: rgba(10, 14, 26, 0.5);
+  transition: all var(--transition-normal);
+  animation: slideInLeft 0.3s ease both;
 }
 
 .match-entry:hover {
@@ -603,6 +751,47 @@ body {
   color: #fff;
   font-size: 10px;
   font-weight: 700;
+}
+
+/* Responsive match table */
+@media (max-width: 700px) {
+  .match-table-header {
+    display: none;
+  }
+
+  .match-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.4rem;
+  }
+
+  .match-row .mr-num {
+    order: 1;
+  }
+
+  .match-row .mr-league {
+    order: 2;
+  }
+
+  .match-row .mr-time {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .match-row .mr-teams {
+    order: 4;
+    width: 100%;
+    font-size: 0.9rem;
+  }
+
+  .match-row .odds-toggle {
+    order: 5;
+    flex: 1;
+  }
 }
 
 /* --- Odds Change Indicators --- */
