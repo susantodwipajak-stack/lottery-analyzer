@@ -1200,7 +1200,13 @@ function drawSumChart() {
     const grad = ctx.createLinearGradient(x, y, x, y + barH); grad.addColorStop(0, '#00d2ff'); grad.addColorStop(1, '#0098db');
     ctx.fillStyle = grad; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.roundRect(x, y, barW, barH, 3); ctx.fill(); ctx.globalAlpha = 1;
     ctx.fillStyle = '#8892a8'; ctx.font = '9px Inter'; ctx.textAlign = 'center';
-    ctx.fillText(r.label, x + barW / 2, H - pad.bottom + 18); ctx.fillText(r.count, x + barW / 2, y - 8);
+    ctx.fillText(r.count, x + barW / 2, y - 8);
+    // Rotated label to prevent overlap
+    ctx.save(); ctx.translate(x + barW / 2, H - pad.bottom + 14);
+    ctx.rotate(-Math.PI / 5.5);
+    ctx.fillStyle = '#8892a8'; ctx.font = '9px Inter'; ctx.textAlign = 'right';
+    ctx.fillText(r.label, 0, 0);
+    ctx.restore();
   });
   ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'left'; ctx.fillText('前区和值分布', pad.left + 5, 20);
 }
