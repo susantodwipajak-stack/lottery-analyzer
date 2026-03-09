@@ -471,34 +471,55 @@ function getMatches() {
   $$('.match-row').forEach(row => {
     const id = row.dataset.matchId, teams = row.querySelector('.mr-teams')?.textContent || `比赛${id}`;
     const btns = row.querySelectorAll('.cz-opt-btn');
+    const smBtns = row.querySelectorAll('.cz-opt-btn-sm');
     const toggles = row.querySelectorAll('.odds-toggle');
     let oddsW = 0, oddsD = 0, oddsL = 0;
     const selections = [];
-    if (btns.length >= 3) {
+    const allOutcomes = [];
+
+    if (smBtns.length > 0) {
+      // BQC or JQ game type — collect all sm buttons
+      smBtns.forEach(btn => {
+        const type = btn.dataset.type || '';
+        const odds = parseFloat(btn.dataset.odds) || 0;
+        const label = btn.querySelector('.bqc-label,.jq-num')?.textContent || type;
+        if (odds > 0) allOutcomes.push({ type, label, odds });
+        if (btn.classList.contains('selected') && odds > 0) {
+          selections.push({ type, label, odds });
+        }
+      });
+    } else if (btns.length >= 3) {
       oddsW = parseFloat(btns[0]?.dataset.odds) || 0;
       oddsD = parseFloat(btns[1]?.dataset.odds) || 0;
       oddsL = parseFloat(btns[2]?.dataset.odds) || 0;
-      if (btns[0]?.classList.contains('selected') && oddsW > 0) selections.push({ type: '胜', odds: oddsW });
-      if (btns[1]?.classList.contains('selected') && oddsD > 0) selections.push({ type: '平', odds: oddsD });
-      if (btns[2]?.classList.contains('selected') && oddsL > 0) selections.push({ type: '负', odds: oddsL });
+      allOutcomes.push({ type: 'w', label: '胜', odds: oddsW });
+      allOutcomes.push({ type: 'd', label: '平', odds: oddsD });
+      allOutcomes.push({ type: 'l', label: '负', odds: oddsL });
+      if (btns[0]?.classList.contains('selected') && oddsW > 0) selections.push({ type: 'w', label: '胜', odds: oddsW });
+      if (btns[1]?.classList.contains('selected') && oddsD > 0) selections.push({ type: 'd', label: '平', odds: oddsD });
+      if (btns[2]?.classList.contains('selected') && oddsL > 0) selections.push({ type: 'l', label: '负', odds: oddsL });
     } else if (toggles.length >= 3) {
       oddsW = parseFloat(toggles[0]?.dataset.odds) || 0;
       oddsD = parseFloat(toggles[1]?.dataset.odds) || 0;
       oddsL = parseFloat(toggles[2]?.dataset.odds) || 0;
-      if (toggles[0]?.classList.contains('selected') && oddsW > 0) selections.push({ type: '胜', odds: oddsW });
-      if (toggles[1]?.classList.contains('selected') && oddsD > 0) selections.push({ type: '平', odds: oddsD });
-      if (toggles[2]?.classList.contains('selected') && oddsL > 0) selections.push({ type: '负', odds: oddsL });
+      allOutcomes.push({ type: 'w', label: '胜', odds: oddsW });
+      allOutcomes.push({ type: 'd', label: '平', odds: oddsD });
+      allOutcomes.push({ type: 'l', label: '负', odds: oddsL });
+      if (toggles[0]?.classList.contains('selected') && oddsW > 0) selections.push({ type: 'w', label: '胜', odds: oddsW });
+      if (toggles[1]?.classList.contains('selected') && oddsD > 0) selections.push({ type: 'd', label: '平', odds: oddsD });
+      if (toggles[2]?.classList.contains('selected') && oddsL > 0) selections.push({ type: 'l', label: '负', odds: oddsL });
     }
-    matches.push({ id, team: teams, oddsW, oddsD, oddsL, selections });
+    matches.push({ id, team: teams, oddsW, oddsD, oddsL, selections, allOutcomes });
   });
   $$('.match-entry').forEach(entry => {
     const id = entry.id.replace('match-', ''), team = $(`#team-${id}`)?.value || `比赛${id}`;
     const w = parseFloat($(`#odds-w-${id}`)?.value) || 0, d = parseFloat($(`#odds-d-${id}`)?.value) || 0, l = parseFloat($(`#odds-l-${id}`)?.value) || 0;
     const sel = [];
-    if ($(`#sel-w-${id}`)?.checked && w > 0) sel.push({ type: '胜', odds: w });
-    if ($(`#sel-d-${id}`)?.checked && d > 0) sel.push({ type: '平', odds: d });
-    if ($(`#sel-l-${id}`)?.checked && l > 0) sel.push({ type: '负', odds: l });
-    matches.push({ id, team, oddsW: w, oddsD: d, oddsL: l, selections: sel });
+    const allOut = [{ type: 'w', label: '胜', odds: w }, { type: 'd', label: '平', odds: d }, { type: 'l', label: '负', odds: l }];
+    if ($(`#sel-w-${id}`)?.checked && w > 0) sel.push({ type: 'w', label: '胜', odds: w });
+    if ($(`#sel-d-${id}`)?.checked && d > 0) sel.push({ type: 'd', label: '平', odds: d });
+    if ($(`#sel-l-${id}`)?.checked && l > 0) sel.push({ type: 'l', label: '负', odds: l });
+    matches.push({ id, team, oddsW: w, oddsD: d, oddsL: l, selections: sel, allOutcomes: allOut });
   });
   return matches;
 }
@@ -551,6 +572,8 @@ function analyzeFootball() {
   let estProbs = null;
   if (estProbStr) estProbs = estProbStr.split(/[,，\s]+/).map(Number).filter(n => !isNaN(n));
 
+  const gameName = GAME_CONFIG[currentGameType]?.name || '胜负游戏';
+
   let totalSelections = 1;
   const matchesWithSel = matches.filter(m => m.selections.length > 0);
   matchesWithSel.forEach(m => { totalSelections *= m.selections.length; });
@@ -568,43 +591,79 @@ function analyzeFootball() {
   const minPayout = (betAmount * minOddsProd * multiple).toFixed(2);
 
   $('#fb-summary').innerHTML = `
+    <div class="result-item"><div class="label">游戏类型</div><div class="value neutral">${gameName}</div></div>
     <div class="result-item"><div class="label">总注数</div><div class="value neutral">${betCount}</div></div>
     <div class="result-item"><div class="label">过关方式</div><div class="value neutral">${parlayLabel}</div></div>
     <div class="result-item"><div class="label">投注金额</div><div class="value gold">¥${totalCost}</div></div>
     <div class="result-item"><div class="label">最高奖金</div><div class="value positive">¥${maxPayout}</div></div>
     <div class="result-item"><div class="label">最低奖金</div><div class="value neutral">¥${minPayout}</div></div>
-    <div class="result-item"><div class="label">回报率范围</div><div class="value neutral">${(minPayout / totalCost * 100).toFixed(0)}%-${(maxPayout / totalCost * 100).toFixed(0)}%</div></div>`;
+    <div class="result-item"><div class="label">回报率范围</div><div class="value neutral">${totalCost > 0 ? (minPayout / totalCost * 100).toFixed(0) : 0}%-${totalCost > 0 ? (maxPayout / totalCost * 100).toFixed(0) : 0}%</div></div>`;
 
   let kellyHTML = '<table class="data-table"><thead><tr><th>比赛</th><th>结果</th><th>赔率</th><th>隐含概率</th><th>凯利指数</th><th>建议</th></tr></thead><tbody>';
   let evHTML = '<table class="data-table"><thead><tr><th>比赛</th><th>结果</th><th>赔率</th><th>EV值</th><th>判定</th></tr></thead><tbody>';
   let valueBetsHTML = '', chartData = [];
+  let recommendHTML = '';
 
   matches.forEach(m => {
-    const outcomes = [{ type: '胜', odds: m.oddsW }, { type: '平', odds: m.oddsD }, { type: '负', odds: m.oddsL }].filter(o => o.odds > 0);
+    // Use allOutcomes for game-type-aware analysis
+    const outcomes = (m.allOutcomes && m.allOutcomes.length > 0)
+      ? m.allOutcomes.filter(o => o.odds > 0)
+      : [{ type: 'w', label: '胜', odds: m.oddsW }, { type: 'd', label: '平', odds: m.oddsD }, { type: 'l', label: '负', odds: m.oddsL }].filter(o => o.odds > 0);
+
+    if (outcomes.length === 0) return;
+
     const impProbs = outcomes.map(o => impliedProb(o.odds));
     const margin = impProbs.reduce((a, b) => a + b, 0);
-    const fairProbs = impProbs.map(p => p / margin);
+    const fairProbs = impProbs.map(p => margin > 0 ? p / margin : 0);
+
+    // Per-match recommendation: find best value
+    let bestEV = -Infinity, bestOutcome = null, bestProb = 0;
+
     outcomes.forEach((o, oIdx) => {
       const prob = estProbs && estProbs[oIdx] !== undefined ? estProbs[oIdx] : fairProbs[oIdx];
       const kelly = calcKelly(o.odds, prob), ev = calcEV(o.odds, prob);
       const kellyClass = kelly > 0.05 ? 'positive' : kelly > 0 ? 'neutral' : 'negative';
       const kellySuggestion = kelly > 0.1 ? '✅ 强烈推荐' : kelly > 0.05 ? '👍 推荐' : kelly > 0 ? '⚠️ 谨慎' : '❌ 不建议';
-      kellyHTML += `<tr><td>${m.team}</td><td>${o.type}</td><td>${o.odds.toFixed(2)}</td><td>${(impliedProb(o.odds) * 100).toFixed(1)}%</td><td class="${kellyClass}" style="font-weight:700">${(kelly * 100).toFixed(2)}%</td><td>${kellySuggestion}</td></tr>`;
+      kellyHTML += `<tr><td>${m.team}</td><td>${o.label}</td><td>${o.odds.toFixed(2)}</td><td>${(impliedProb(o.odds) * 100).toFixed(1)}%</td><td class="${kellyClass}" style="font-weight:700">${(kelly * 100).toFixed(2)}%</td><td>${kellySuggestion}</td></tr>`;
       const evClass = ev > 0 ? 'positive' : 'negative';
       const evTag = ev > 0 ? '<span class="value-badge value">🎯 价值投注</span>' : '<span class="value-badge cold">⛔ 负期望</span>';
-      evHTML += `<tr><td>${m.team}</td><td>${o.type}</td><td>${o.odds.toFixed(2)}</td><td class="${evClass}" style="font-weight:700">${(ev * 100).toFixed(2)}%</td><td>${evTag}</td></tr>`;
-      if (ev > 0) valueBetsHTML += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border)"><span class="value-badge value">价值</span><span style="font-weight:600">${m.team}</span> — <span style="color:var(--cyan)">${o.type} @ ${o.odds.toFixed(2)}</span><span style="color:var(--green);font-weight:700">EV: +${(ev * 100).toFixed(2)}%</span></div>`;
-      chartData.push({ match: m.team, type: o.type, odds: o.odds, impliedProb: impliedProb(o.odds), fairProb: fairProbs[oIdx] });
+      evHTML += `<tr><td>${m.team}</td><td>${o.label}</td><td>${o.odds.toFixed(2)}</td><td class="${evClass}" style="font-weight:700">${(ev * 100).toFixed(2)}%</td><td>${evTag}</td></tr>`;
+      if (ev > 0) valueBetsHTML += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border)"><span class="value-badge value">价值</span><span style="font-weight:600">${m.team}</span> — <span style="color:var(--cyan)">${o.label} @ ${o.odds.toFixed(2)}</span><span style="color:var(--green);font-weight:700">EV: +${(ev * 100).toFixed(2)}%</span></div>`;
+      chartData.push({ match: m.team, type: o.label, odds: o.odds, impliedProb: impliedProb(o.odds), fairProb: fairProbs[oIdx] });
+
+      if (ev > bestEV) { bestEV = ev; bestOutcome = o; bestProb = prob; }
     });
+
+    // Build recommendation per match
+    if (bestOutcome) {
+      const confLevel = bestProb > 0.5 ? '高' : bestProb > 0.3 ? '中' : '低';
+      const confColor = bestProb > 0.5 ? 'var(--green)' : bestProb > 0.3 ? 'var(--yellow)' : 'var(--text-muted)';
+      // Find top 2 most probable
+      const ranked = outcomes.map((o, i) => ({ ...o, prob: fairProbs[i] })).sort((a, b) => b.prob - a.prob);
+      const top2 = ranked.slice(0, 2).map(r => `<span style="color:var(--cyan);font-weight:600">${r.label}</span>(${(r.prob * 100).toFixed(0)}%)`).join(' / ');
+      recommendHTML += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem;">
+        <span style="font-weight:600;min-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.team}</span>
+        <span style="color:${confColor};font-size:0.72rem;min-width:30px;">信心:${confLevel}</span>
+        <span>推荐: ${top2}</span>
+      </div>`;
+    }
   });
 
   kellyHTML += '</tbody></table>'; evHTML += '</tbody></table>';
   $('#kelly-results').innerHTML = kellyHTML;
   $('#ev-results').innerHTML = evHTML;
-  $('#value-bets').innerHTML = valueBetsHTML || '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem">当前赔率未发现明显价值投注机会</p>';
+
+  // Add recommendation section to value-bets area
+  let fullValueHTML = '';
+  if (recommendHTML) {
+    fullValueHTML += `<div style="margin-bottom:1rem;"><div style="font-weight:700;font-size:0.85rem;margin-bottom:0.5rem;color:var(--gold);">📋 ${gameName} — AI推荐方案</div>${recommendHTML}</div>`;
+  }
+  fullValueHTML += valueBetsHTML || '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem">当前赔率未发现明显价值投注机会</p>';
+
+  $('#value-bets').innerHTML = fullValueHTML;
   $('#football-results').classList.remove('hidden');
   drawOddsChart(chartData);
-  showToast('足球深度分析完成', 'success');
+  showToast(`${gameName}深度分析完成`, 'success');
 }
 
 function drawOddsChart(data) {
