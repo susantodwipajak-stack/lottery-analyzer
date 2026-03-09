@@ -159,8 +159,47 @@ $$('.tab-btn').forEach(btn => {
 // =============================================
 let matchCount = 0;
 let matchData = [];
+let currentGameType = 'sf'; // sf | r9 | bqc | jq
+
+const GAME_CONFIG = {
+  sf: {
+    name: '胜负游戏', maxPrize: '500 万元',
+    instruction: '玩法提示：以下14场比赛，每场比赛至少选择一个结果；比赛结果以90分钟（含伤停补时，不含加时赛）结果为准。'
+  },
+  r9: {
+    name: '任选9场', maxPrize: '500 万元',
+    instruction: '玩法提示：从指定的所有比赛中任意选择9场，对每场比赛在胜、平、负三种结果中选择至少一个结果进行投注。'
+  },
+  bqc: {
+    name: '6场半全场', maxPrize: '500 万元',
+    instruction: '玩法提示：对指定6场比赛在全部9种（胜胜/胜平/胜负/平胜/平平/平负/负胜/负平/负负）结果中，每场至少选择1个结果进行投注。'
+  },
+  jq: {
+    name: '4场进球', maxPrize: '500 万元',
+    instruction: '玩法提示：对指定4场比赛在全部（0/1/2/3+）进球数中，分别对主队和客队至少选择1个结果进行投注。'
+  }
+};
+
+// ---- BQC half/full-time options ----
+const BQC_OPTIONS = [
+  { key: 'ww', label: '胜胜', short: '33' },
+  { key: 'wd', label: '胜平', short: '31' },
+  { key: 'wl', label: '胜负', short: '30' },
+  { key: 'dw', label: '平胜', short: '13' },
+  { key: 'dd', label: '平平', short: '11' },
+  { key: 'dl', label: '平负', short: '10' },
+  { key: 'lw', label: '负胜', short: '03' },
+  { key: 'ld', label: '负平', short: '01' },
+  { key: 'll', label: '负负', short: '00' }
+];
+
+// ---- JQ goal options ----
+const JQ_GOALS = ['0', '1', '2', '3+'];
 
 function renderMatchRow(match) {
+  if (currentGameType === 'bqc') return renderBQCRow(match);
+  if (currentGameType === 'jq') return renderJQRow(match);
+  // Default: sf / r9 — same 3/1/0 layout
   matchCount++;
   const id = matchCount;
   match._id = id;
@@ -182,18 +221,166 @@ function renderMatchRow(match) {
     <span class="mr-sp">${oddsL ? oddsL.toFixed(2) : '--'}</span>`;
   return row;
 }
+
+function renderBQCRow(match) {
+  matchCount++;
+  const id = matchCount;
+  match._id = id;
+  const row = document.createElement('div');
+  row.className = 'match-row match-row-bqc'; row.id = 'match-' + id; row.dataset.matchId = id;
+  const league = match.league || '友谊赛';
+  const home = match.home || '主队', away = match.away || '客队';
+  // Generate estimated half/full odds from HAD odds
+  const oddsW = match.oddsW || 2, oddsD = match.oddsD || 3, oddsL = match.oddsL || 3;
+  const bqcOdds = estimateBQCOdds(oddsW, oddsD, oddsL);
+  let btnsHTML = BQC_OPTIONS.map((o, i) =>
+    `<div class="cz-opt-btn-sm" data-match="${id}" data-type="${o.key}" data-odds="${bqcOdds[i].toFixed(2)}" onclick="toggleOdds(this)">
+      <span class="bqc-label">${o.short}</span>
+      <span class="bqc-sp">${bqcOdds[i].toFixed(1)}</span>
+    </div>`
+  ).join('');
+  row.innerHTML = `
+    <span class="mr-num">${id}</span>
+    <span class="mr-league" title="${league}">${league}</span>
+    <span class="mr-teams">${home}<span class="vs">VS</span>${away}</span>
+    <div class="bqc-opts">${btnsHTML}</div>`;
+  return row;
+}
+
+function renderJQRow(match) {
+  matchCount++;
+  const id = matchCount;
+  match._id = id;
+  const row = document.createElement('div');
+  row.className = 'match-row match-row-jq'; row.id = 'match-' + id; row.dataset.matchId = id;
+  const league = match.league || '友谊赛';
+  const home = match.home || '主队', away = match.away || '客队';
+  const oddsW = match.oddsW || 2, oddsD = match.oddsD || 3, oddsL = match.oddsL || 3;
+  const goalOdds = estimateGoalOdds(oddsW, oddsD, oddsL);
+  let homeBtns = JQ_GOALS.map((g, i) =>
+    `<div class="cz-opt-btn-sm" data-match="${id}" data-type="h${g}" data-odds="${goalOdds.home[i].toFixed(2)}" onclick="toggleOdds(this)">
+      <span class="jq-num">${g}</span><span class="bqc-sp">${goalOdds.home[i].toFixed(1)}</span>
+    </div>`
+  ).join('');
+  let awayBtns = JQ_GOALS.map((g, i) =>
+    `<div class="cz-opt-btn-sm" data-match="${id}" data-type="a${g}" data-odds="${goalOdds.away[i].toFixed(2)}" onclick="toggleOdds(this)">
+      <span class="jq-num">${g}</span><span class="bqc-sp">${goalOdds.away[i].toFixed(1)}</span>
+    </div>`
+  ).join('');
+  row.innerHTML = `
+    <span class="mr-num">${id}</span>
+    <span class="mr-league" title="${league}">${league}</span>
+    <span class="mr-teams">${home}<span class="vs">VS</span>${away}</span>
+    <div class="jq-team-row"><span class="jq-team-label">主</span>${homeBtns}</div>
+    <div class="jq-team-row"><span class="jq-team-label">客</span>${awayBtns}</div>`;
+  return row;
+}
+
+function estimateBQCOdds(w, d, l) {
+  // Estimate 9 half/full from HAD — simplified model
+  const pw = 1 / w, pd = 1 / d, pl = 1 / l;
+  const m = pw + pd + pl;
+  const fw = pw / m, fd = pd / m, fl = pl / m;
+  // Half-time tends toward more draws, so we skew
+  const hw = fw * 0.8, hd = 0.4 + fd * 0.3, hl = fl * 0.8;
+  const hm = hw + hd + hl;
+  const hfw = hw / hm, hfd = hd / hm, hfl = hl / hm;
+  return [
+    1 / (hfw * fw) * 0.88, 1 / (hfw * fd) * 0.88, 1 / (hfw * fl) * 0.88,
+    1 / (hfd * fw) * 0.88, 1 / (hfd * fd) * 0.88, 1 / (hfd * fl) * 0.88,
+    1 / (hfl * fw) * 0.88, 1 / (hfl * fd) * 0.88, 1 / (hfl * fl) * 0.88
+  ].map(o => Math.max(1.5, Math.min(200, o)));
+}
+
+function estimateGoalOdds(w, d, l) {
+  const pw = 1 / w, pd = 1 / d, pl = 1 / l;
+  const m = pw + pd + pl;
+  const fw = pw / m, fl = pl / m;
+  // Strong team more likely to score more
+  const homeStrength = fw / (fw + fl + 0.001);
+  const awayStrength = fl / (fw + fl + 0.001);
+  function goalProbs(s) {
+    const avg = 0.5 + s * 1.8;
+    return [
+      Math.exp(-avg),
+      avg * Math.exp(-avg),
+      (avg * avg / 2) * Math.exp(-avg),
+      1 - Math.exp(-avg) - avg * Math.exp(-avg) - (avg * avg / 2) * Math.exp(-avg)
+    ].map(p => Math.max(0.03, p));
+  }
+  const hp = goalProbs(homeStrength), ap = goalProbs(awayStrength);
+  return {
+    home: hp.map(p => Math.max(1.2, (1 / p) * 0.88)),
+    away: ap.map(p => Math.max(1.2, (1 / p) * 0.88))
+  };
+}
+
 function toggleOdds(el) {
   el.classList.toggle('selected');
   const row = el.closest('.match-row');
-  if (row) row.classList.toggle('has-selection', row.querySelectorAll('.cz-opt-btn.selected, .odds-toggle.selected').length > 0);
+  if (row) row.classList.toggle('has-selection', row.querySelectorAll('.cz-opt-btn.selected, .cz-opt-btn-sm.selected, .odds-toggle.selected').length > 0);
   updateParlayOptions(); updateBetBar();
 }
 function renderMatchList(matches) {
   const list = $('#match-list'); list.innerHTML = ''; matchCount = 0; matchData = matches;
-  if (matches.length === 0) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚽</div><div class="empty-state-title">暂无赛事数据</div><div class="empty-state-desc">拉取赛事数据或载入示例</div></div>'; return; }
-  matches.forEach(m => list.appendChild(renderMatchRow(m)));
-  const label = $('#match-count-label'); if (label) label.textContent = matches.length + ' 场比赛';
+  // Limit matches for specific game types
+  let gameMatches = matches;
+  if (currentGameType === 'bqc') gameMatches = matches.slice(0, 6);
+  else if (currentGameType === 'jq') gameMatches = matches.slice(0, 4);
+  else if (currentGameType === 'r9') gameMatches = matches.slice(0, 14);
+  else gameMatches = matches.slice(0, 14);
+  if (gameMatches.length === 0) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚽</div><div class="empty-state-title">暂无赛事数据</div><div class="empty-state-desc">拉取赛事数据或载入示例</div></div>'; return; }
+  gameMatches.forEach(m => list.appendChild(renderMatchRow(m)));
+  const label = $('#match-count-label'); if (label) label.textContent = gameMatches.length + ' 场比赛';
   updateParlayOptions(); updateBetBar();
+}
+
+function switchGameTab(gameType) {
+  currentGameType = gameType;
+  const config = GAME_CONFIG[gameType];
+  // Update instructions
+  const inst = $('.cz-instructions');
+  if (inst) inst.textContent = config.instruction;
+  // Update prize
+  const prize = $('.prize-amount');
+  if (prize) prize.textContent = config.maxPrize;
+  // Update table header
+  updateTableHeader(gameType);
+  // Re-render matches
+  if (matchData.length > 0) renderMatchList(matchData);
+}
+
+function updateTableHeader(gameType) {
+  const header = $('.cz-table-header');
+  if (!header) return;
+  if (gameType === 'bqc') {
+    header.className = 'cz-table-header cz-header-bqc';
+    header.innerHTML = `
+      <span class="cz-th cz-th-no">场次</span>
+      <span class="cz-th cz-th-league">联赛</span>
+      <span class="cz-th cz-th-teams">主队 VS 客队</span>
+      <span class="cz-th" style="grid-column:span 9;text-align:center;">半场/全场结果</span>`;
+  } else if (gameType === 'jq') {
+    header.className = 'cz-table-header cz-header-jq';
+    header.innerHTML = `
+      <span class="cz-th cz-th-no">场次</span>
+      <span class="cz-th cz-th-league">联赛</span>
+      <span class="cz-th cz-th-teams">主队 VS 客队</span>
+      <span class="cz-th" style="grid-column:span 4;text-align:center;">进球数 (0/1/2/3+)</span>`;
+  } else {
+    header.className = 'cz-table-header';
+    header.innerHTML = `
+      <span class="cz-th cz-th-no">场次</span>
+      <span class="cz-th cz-th-league">联赛</span>
+      <span class="cz-th cz-th-date">开赛日期</span>
+      <span class="cz-th cz-th-teams">主队 VS 客队</span>
+      <span class="cz-th cz-th-opt" style="color:var(--red);">胜<br><small>3</small></span>
+      <span class="cz-th cz-th-opt">平<br><small>1</small></span>
+      <span class="cz-th cz-th-opt" style="color:var(--blue);">负<br><small>0</small></span>
+      <span class="cz-th cz-th-sp" style="color:var(--red);">胜</span>
+      <span class="cz-th cz-th-sp">平</span>
+      <span class="cz-th cz-th-sp" style="color:var(--blue);">负</span>`;
+  }
 }
 async function fetchFootballMatches() {
   const btn = $('#btn-fetch-matches'), status = $('#fb-status');
@@ -317,10 +504,10 @@ function getMatches() {
 }
 
 function updateBetBar() {
-  const selected = $$('.match-row').filter(r => r.querySelectorAll('.cz-opt-btn.selected, .odds-toggle.selected').length > 0);
+  const selected = $$('.match-row').filter(r => r.querySelectorAll('.cz-opt-btn.selected, .cz-opt-btn-sm.selected, .odds-toggle.selected').length > 0);
   let betCount = 1;
   selected.forEach(r => {
-    const n = r.querySelectorAll('.cz-opt-btn.selected, .odds-toggle.selected').length;
+    const n = r.querySelectorAll('.cz-opt-btn.selected, .cz-opt-btn-sm.selected, .odds-toggle.selected').length;
     betCount *= n;
   });
   if (selected.length === 0) betCount = 0;
@@ -776,6 +963,7 @@ $('#btn-compare-fb').addEventListener('click', compareFbPredictions);
 $$('.cz-game-tab').forEach(tab => tab.addEventListener('click', () => {
   $$('.cz-game-tab').forEach(t => t.classList.remove('active'));
   tab.classList.add('active');
+  switchGameTab(tab.dataset.game);
 }));
 // Multiplier +/- buttons
 const betMinus = $('#bet-minus'), betPlus = $('#bet-plus'), betMulti = $('#bet-multiple');
