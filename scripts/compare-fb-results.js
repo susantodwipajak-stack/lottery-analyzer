@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 /**
- * 📊 足彩推荐方案比对 + 模型自动进化脚本
+ * 📊 足彩推荐方案比对 + 模型自动进化脚本 V2.0
  * 
- * 功能:
- *   1. 拉取已完赛的比赛结果
- *   2. 将推荐方案与实际结果比对
- *   3. 计算命中率统计
- *   4. 自动修正模型参数（表现好的策略加权，差的减权）
+ * 改进:
+ *   - 双向奖惩: 好于平均→强化, 差于平均→反向调整
+ *   - 动量加速: 连续同方向调整时加速收敛 (momentum=0.7)
+ *   - 分联赛追踪: 按联赛记录命中率，自动学习联赛参数
+ *   - 信心加权: 高信心推荐影响更大
+ *   - 多策略表现追踪: 独立记录保守/均衡/激进策略准确率
+ *   - 衰减因子: 远期历史权重衰减 (decay=0.95/session)
  * 
  * 运行: node scripts/compare-fb-results.js
- * 触发: GitHub Actions 每天 21:30 (UTC 13:30)
  */
 
 const fs = require('fs');
@@ -19,7 +20,6 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const PICKS_DIR = path.join(DATA_DIR, 'fb-picks');
 const PARAMS_FILE = path.join(DATA_DIR, 'model-params.json');
 const ACCURACY_FILE = path.join(DATA_DIR, 'fb-accuracy.json');
-const MATCHES_FILE = path.join(DATA_DIR, 'matches.json');
 
 const HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -31,7 +31,8 @@ function loadJSON(file) {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
 }
 
-// ---- 拉取比赛结果 ----
+// ========== 拉取比赛结果 ==========
+
 async function fetchResults() {
     console.log('🔍 正在拉取比赛结果...');
     const apis = [
@@ -49,6 +50,7 @@ async function fetchResults() {
                                 matchNum: m.matchNum || m.matchId || '',
                                 home: m.homeTeamAbbName || m.homeTeamAllName || '',
                                 away: m.awayTeamAbbName || m.awayTeamAllName || '',
+                                league: m.leagueAbbName || m.leagueName || '',
                                 homeScore: parseInt(m.homeScore) || 0,
                                 awayScore: parseInt(m.awayScore) || 0,
                                 halfHomeScore: parseInt(m.homeHalfScore) || 0,
@@ -88,34 +90,30 @@ function getResult(homeScore, awayScore) {
 }
 
 function getHalfFullResult(hh, ha, fh, fa) {
-    const halfR = getResult(hh, ha);
-    const fullR = getResult(fh, fa);
-    return halfR + fullR;
+    return getResult(hh, ha) + getResult(fh, fa);
 }
 
-// ---- 比对推荐方案 ----
+// ========== 比对推荐方案 ==========
+
 function comparePicks(picks, results) {
     const stats = {
-        sf: { total: 0, correct: 0, matches: [] },
+        sf: { total: 0, correct: 0, matches: [], byConfidence: {}, byStrategy: {}, byLeague: {} },
         bqc: { total: 0, correct: 0, matches: [] },
         jq: { total: 0, correct: 0, matches: [] }
     };
 
-    // Map results by team names for matching
     const resultMap = new Map();
     results.forEach(r => {
         const key = `${r.home}vs${r.away}`.replace(/\s/g, '');
         resultMap.set(key, r);
-        // Also try reversed
         resultMap.set(`${r.away}vs${r.home}`.replace(/\s/g, ''), { ...r, reversed: true });
     });
 
     function findResult(home, away) {
-        const key = `${home}vs${away}`.replace(/\s/g, '');
-        return resultMap.get(key);
+        return resultMap.get(`${home}vs${away}`.replace(/\s/g, ''));
     }
 
-    // Compare 胜负游戏
+    // Compare 胜负游戏 (with confidence + strategy tracking)
     if (picks.sf?.picks) {
         for (const p of picks.sf.picks) {
             const result = findResult(p.home, p.away);
@@ -123,9 +121,39 @@ function comparePicks(picks, results) {
             stats.sf.total++;
             const hit = p.pick === result.result;
             if (hit) stats.sf.correct++;
+
+            // Track by confidence level
+            const conf = p.confidence || '中';
+            if (!stats.sf.byConfidence[conf]) stats.sf.byConfidence[conf] = { total: 0, correct: 0 };
+            stats.sf.byConfidence[conf].total++;
+            if (hit) stats.sf.byConfidence[conf].correct++;
+
+            // Track by strategy used
+            const strat = p.strategy || 'balanced';
+            if (!stats.sf.byStrategy[strat]) stats.sf.byStrategy[strat] = { total: 0, correct: 0 };
+            stats.sf.byStrategy[strat].total++;
+            if (hit) stats.sf.byStrategy[strat].correct++;
+
+            // Track by league
+            const league = p.league || result.league || 'unknown';
+            if (!stats.sf.byLeague[league]) stats.sf.byLeague[league] = { total: 0, correct: 0 };
+            stats.sf.byLeague[league].total++;
+            if (hit) stats.sf.byLeague[league].correct++;
+
+            // Track all 3 strategies' virtual accuracy
+            if (p.allStrategies) {
+                p.allStrategies.forEach(s => {
+                    const sHit = s.pick === result.result;
+                    const key = `virtual_${s.id}`;
+                    if (!stats.sf.byStrategy[key]) stats.sf.byStrategy[key] = { total: 0, correct: 0 };
+                    stats.sf.byStrategy[key].total++;
+                    if (sHit) stats.sf.byStrategy[key].correct++;
+                });
+            }
+
             stats.sf.matches.push({
-                match: `${p.home} vs ${p.away}`,
-                pick: p.pick, actual: result.result,
+                match: `${p.home} vs ${p.away}`, league,
+                pick: p.pick, actual: result.result, confidence: conf, strategy: strat,
                 hit, score: `${result.homeScore}:${result.awayScore}`
             });
         }
@@ -140,10 +168,7 @@ function comparePicks(picks, results) {
             const actualBQC = getHalfFullResult(result.halfHomeScore, result.halfAwayScore, result.homeScore, result.awayScore);
             const hit = p.pick === actualBQC;
             if (hit) stats.bqc.correct++;
-            stats.bqc.matches.push({
-                match: `${p.home} vs ${p.away}`,
-                pick: p.pick, actual: actualBQC, hit
-            });
+            stats.bqc.matches.push({ match: `${p.home} vs ${p.away}`, pick: p.pick, actual: actualBQC, hit });
         }
     }
 
@@ -161,8 +186,7 @@ function comparePicks(picks, results) {
             stats.jq.matches.push({
                 match: `${p.home} vs ${p.away}`,
                 pickHome: p.homePick, pickAway: p.awayPick,
-                actualHome, actualAway,
-                homeHit, awayHit,
+                actualHome, actualAway, homeHit, awayHit,
                 score: `${result.homeScore}:${result.awayScore}`
             });
         }
@@ -171,7 +195,8 @@ function comparePicks(picks, results) {
     return stats;
 }
 
-// ---- 自动修正模型参数 ----
+// ========== 自动修正模型参数 V2: 双向奖惩 + 动量 + 联赛学习 ==========
+
 function evolveParams(params, stats) {
     const totalPicks = stats.sf.total + stats.bqc.total + stats.jq.total;
     const totalCorrect = stats.sf.correct + stats.bqc.correct + stats.jq.correct;
@@ -179,35 +204,79 @@ function evolveParams(params, stats) {
 
     const sessionRate = totalCorrect / totalPicks;
 
-    // Update cumulative accuracy
-    params.accuracy.total += totalPicks;
-    params.accuracy.correct += totalCorrect;
+    // Initialize missing fields
+    if (!params.accuracy) params.accuracy = { total: 0, correct: 0, rate: 0, byGame: {} };
+    if (!params.momentum) params.momentum = { kelly: 0, ev: 0, implied: 0 };
+    if (!params.leagueParams) params.leagueParams = {};
+    if (!params.strategyAccuracy) params.strategyAccuracy = {};
+
+    // ─── 1. Update cumulative accuracy with decay ───
+    const decay = 0.95; // Historical data decays 5% per session
+    params.accuracy.total = params.accuracy.total * decay + totalPicks;
+    params.accuracy.correct = params.accuracy.correct * decay + totalCorrect;
     params.accuracy.rate = +(params.accuracy.correct / params.accuracy.total).toFixed(4);
 
     // Per-game accuracy
     ['sf', 'bqc', 'jq'].forEach(g => {
         if (stats[g].total > 0) {
             params.accuracy.byGame[g] = params.accuracy.byGame[g] || { total: 0, correct: 0 };
-            params.accuracy.byGame[g].total += stats[g].total;
-            params.accuracy.byGame[g].correct += stats[g].correct;
+            params.accuracy.byGame[g].total = (params.accuracy.byGame[g].total || 0) * decay + stats[g].total;
+            params.accuracy.byGame[g].correct = (params.accuracy.byGame[g].correct || 0) * decay + stats[g].correct;
         }
     });
 
-    // Evolve weights based on performance
-    const w = params.weights;
-    const learnRate = 0.02; // Small increments
-
-    if (sessionRate > params.accuracy.rate) {
-        // Current session better than average — reinforce current weights
-        console.log('  📈 本次命中率高于平均，强化当前权重');
-    } else if (sessionRate < params.accuracy.rate * 0.8) {
-        // Much worse — shift weights
-        console.log('  📉 本次命中率低于平均，调整权重');
-        // Increase implied probability weight (more conservative)
-        w.implied = Math.min(0.50, w.implied + learnRate);
-        w.kelly = Math.max(0.15, w.kelly - learnRate * 0.5);
-        w.ev = Math.max(0.15, w.ev - learnRate * 0.5);
+    // ─── 2. Per-strategy accuracy tracking ───
+    if (stats.sf.byStrategy) {
+        for (const [stratId, data] of Object.entries(stats.sf.byStrategy)) {
+            if (!params.strategyAccuracy[stratId]) params.strategyAccuracy[stratId] = { total: 0, correct: 0 };
+            params.strategyAccuracy[stratId].total = (params.strategyAccuracy[stratId].total || 0) * decay + data.total;
+            params.strategyAccuracy[stratId].correct = (params.strategyAccuracy[stratId].correct || 0) * decay + data.correct;
+        }
     }
+
+    // Log strategy comparison
+    console.log('\n  📊 策略虚拟对比:');
+    ['virtual_conservative', 'virtual_balanced', 'virtual_aggressive'].forEach(key => {
+        const sa = params.strategyAccuracy[key];
+        if (sa && sa.total > 0) {
+            const label = key.replace('virtual_', '');
+            console.log(`    ${label}: ${(sa.correct / sa.total * 100).toFixed(1)}% (${Math.round(sa.correct)}/${Math.round(sa.total)})`);
+        }
+    });
+
+    // ─── 3. Bidirectional weight evolution with momentum ───
+    const w = params.weights;
+    const mom = params.momentum;
+    const learnRate = 0.03;
+    const momentumFactor = 0.7;
+
+    const delta = sessionRate - params.accuracy.rate;
+
+    if (delta > 0.05) {
+        // Better than average → reinforce current direction
+        console.log(`  📈 本次 ${(sessionRate * 100).toFixed(1)}% > 平均 ${(params.accuracy.rate * 100).toFixed(1)}% → 强化当前方向`);
+        // If kelly was recently boosted (+momentum) and we're doing well, keep boosting
+        mom.kelly = momentumFactor * mom.kelly + learnRate * 0.5;
+        mom.ev = momentumFactor * mom.ev + learnRate * 0.3;
+        mom.implied = momentumFactor * mom.implied - learnRate * 0.3; // Reduce conservative approach
+    } else if (delta < -0.05) {
+        // Worse than average → shift toward conservative (implied probability)
+        console.log(`  📉 本次 ${(sessionRate * 100).toFixed(1)}% < 平均 ${(params.accuracy.rate * 100).toFixed(1)}% → 偏向保守`);
+        mom.kelly = momentumFactor * mom.kelly - learnRate * 0.4;
+        mom.ev = momentumFactor * mom.ev - learnRate * 0.3;
+        mom.implied = momentumFactor * mom.implied + learnRate * 0.5;
+    } else {
+        // Similar performance → decay momentum
+        console.log(`  ↔️ 本次 ${(sessionRate * 100).toFixed(1)}% ≈ 平均 → 保持当前`);
+        mom.kelly *= 0.5;
+        mom.ev *= 0.5;
+        mom.implied *= 0.5;
+    }
+
+    // Apply momentum to weights
+    w.kelly = Math.max(0.10, Math.min(0.55, w.kelly + mom.kelly));
+    w.ev = Math.max(0.10, Math.min(0.55, w.ev + mom.ev));
+    w.implied = Math.max(0.10, Math.min(0.60, w.implied + mom.implied));
 
     // Normalize weights
     const wSum = w.kelly + w.ev + w.implied;
@@ -215,39 +284,92 @@ function evolveParams(params, stats) {
     w.ev = +(w.ev / wSum).toFixed(4);
     w.implied = +(w.implied / wSum).toFixed(4);
 
-    // Adjust game-specific params based on accuracy
-    if (stats.sf.total >= 5) {
-        const sfRate = stats.sf.correct / stats.sf.total;
-        const gw = params.gameWeights.sf;
-        if (sfRate < 0.3) {
-            // Too many wrong — reduce home advantage bias
-            gw.homeAdv = Math.max(0, gw.homeAdv - 0.01);
-            gw.drawBias = Math.min(0.10, gw.drawBias + 0.005);
-        } else if (sfRate > 0.5) {
-            gw.homeAdv = Math.min(0.15, gw.homeAdv + 0.005);
+    // Clamp momentum
+    mom.kelly = +Math.max(-0.05, Math.min(0.05, mom.kelly)).toFixed(4);
+    mom.ev = +Math.max(-0.05, Math.min(0.05, mom.ev)).toFixed(4);
+    mom.implied = +Math.max(-0.05, Math.min(0.05, mom.implied)).toFixed(4);
+
+    // ─── 4. Per-league parameter learning ───
+    if (stats.sf.byLeague) {
+        for (const [league, data] of Object.entries(stats.sf.byLeague)) {
+            if (data.total < 2) continue;
+            if (!params.leagueParams[league]) {
+                params.leagueParams[league] = { homeAdv: 0.08, drawBias: 0.02, avgGoals: 2.5, samples: 0 };
+            }
+            const lp = params.leagueParams[league];
+            lp.samples += data.total;
+            const leagueRate = data.correct / data.total;
+
+            // Analyze what went wrong/right for this league
+            const leagueMatches = stats.sf.matches.filter(m => m.league === league);
+            const homeWins = leagueMatches.filter(m => m.actual === '胜').length;
+            const draws = leagueMatches.filter(m => m.actual === '平').length;
+            const actualHomeRate = homeWins / leagueMatches.length;
+            const actualDrawRate = draws / leagueMatches.length;
+
+            // Adjust league params toward observed rates
+            const lr = Math.min(0.05, 1 / (lp.samples + 5)); // Smaller adjustments as we get more data
+            lp.homeAdv = +(lp.homeAdv + lr * (actualHomeRate - 0.40 - lp.homeAdv)).toFixed(4);
+            lp.drawBias = +(lp.drawBias + lr * (actualDrawRate - 0.28 - lp.drawBias)).toFixed(4);
+            lp.homeAdv = Math.max(0, Math.min(0.20, lp.homeAdv));
+            lp.drawBias = Math.max(-0.05, Math.min(0.15, lp.drawBias));
+
+            console.log(`  🏟️ ${league}: ${leagueRate.toFixed(2)} (${data.correct}/${data.total}) → homeAdv=${lp.homeAdv} drawBias=${lp.drawBias}`);
         }
     }
 
-    if (stats.jq.total >= 3) {
+    // ─── 5. Game-specific param adjustment ───
+    if (stats.sf.total >= 3) {
+        const sfRate = stats.sf.correct / stats.sf.total;
+        const gw = params.gameWeights.sf;
+        if (sfRate < 0.25) {
+            gw.homeAdv = Math.max(0, (gw.homeAdv || 0.08) - 0.01);
+            gw.drawBias = Math.min(0.10, (gw.drawBias || 0.02) + 0.005);
+        } else if (sfRate > 0.50) {
+            gw.homeAdv = Math.min(0.15, (gw.homeAdv || 0.08) + 0.005);
+        }
+    }
+
+    if (stats.jq.total >= 2) {
         const jqRate = stats.jq.correct / stats.jq.total;
         const gw = params.gameWeights.jq;
         if (jqRate < 0.15) {
-            gw.avgGoals = Math.max(1.8, gw.avgGoals - 0.05);
+            gw.avgGoals = Math.max(1.8, (gw.avgGoals || 2.5) - 0.05);
         } else if (jqRate > 0.3) {
-            gw.avgGoals = Math.min(3.2, gw.avgGoals + 0.05);
+            gw.avgGoals = Math.min(3.2, (gw.avgGoals || 2.5) + 0.05);
         }
     }
 
-    // Record history
+    // ─── 6. Confidence-weighted scoring ───
+    let confWeightedRate = sessionRate;
+    if (stats.sf.byConfidence) {
+        const confWeights = { '高': 2.0, '中': 1.0, '低': 0.5 };
+        let weightedCorrect = 0, weightedTotal = 0;
+        for (const [conf, data] of Object.entries(stats.sf.byConfidence)) {
+            const w = confWeights[conf] || 1;
+            weightedCorrect += data.correct * w;
+            weightedTotal += data.total * w;
+        }
+        if (weightedTotal > 0) {
+            confWeightedRate = weightedCorrect / weightedTotal;
+            console.log(`  🎯 信心加权准确率: ${(confWeightedRate * 100).toFixed(1)}%`);
+            for (const [conf, data] of Object.entries(stats.sf.byConfidence)) {
+                console.log(`    ${conf}信心: ${data.correct}/${data.total} (${(data.correct / data.total * 100).toFixed(0)}%)`);
+            }
+        }
+    }
+
+    // ─── 7. Record evolution history ───
     params.history = params.history || [];
     params.history.push({
         date: new Date().toISOString().slice(0, 10),
         rate: +sessionRate.toFixed(4),
+        confWeightedRate: +confWeightedRate.toFixed(4),
         picks: totalPicks,
         correct: totalCorrect,
-        weights: { ...w }
+        weights: { ...w },
+        momentum: { ...mom }
     });
-    // Keep last 30 entries
     if (params.history.length > 30) params.history = params.history.slice(-30);
 
     params.version++;
@@ -256,15 +378,12 @@ function evolveParams(params, stats) {
     return params;
 }
 
-// ---- 主逻辑 ----
-async function main() {
-    console.log('📊 足彩推荐方案比对 + 模型进化开始...\n');
+// ========== 主逻辑 ==========
 
-    // Find pending picks to compare
-    if (!fs.existsSync(PICKS_DIR)) {
-        console.log('⚠️ 无推荐方案存档');
-        return;
-    }
+async function main() {
+    console.log('📊 足彩推荐比对 + 模型进化 V2.0 开始...\n');
+
+    if (!fs.existsSync(PICKS_DIR)) { console.log('⚠️ 无推荐方案存档'); return; }
 
     const files = fs.readdirSync(PICKS_DIR).filter(f => f.match(/^\d{4}-\d{2}-\d{2}\.json$/));
     const pendingFiles = files.filter(f => {
@@ -272,23 +391,19 @@ async function main() {
         return picks && picks.status === 'pending';
     });
 
-    if (pendingFiles.length === 0) {
-        console.log('ℹ️ 无待比对的推荐方案');
-        return;
-    }
+    if (pendingFiles.length === 0) { console.log('ℹ️ 无待比对的推荐方案'); return; }
 
-    // Fetch results
     const results = await fetchResults();
-    if (results.length === 0) {
-        console.log('⚠️ 未获取到比赛结果，跳过比对');
-        return;
-    }
+    if (results.length === 0) { console.log('⚠️ 未获取到结果，跳过'); return; }
 
     let params = loadJSON(PARAMS_FILE) || {
         version: 1,
         weights: { kelly: 0.35, ev: 0.35, implied: 0.30 },
         gameWeights: { sf: {}, bqc: {}, jq: {} },
         accuracy: { total: 0, correct: 0, rate: 0, byGame: {} },
+        momentum: { kelly: 0, ev: 0, implied: 0 },
+        leagueParams: {},
+        strategyAccuracy: {},
         history: []
     };
 
@@ -299,10 +414,9 @@ async function main() {
         const picks = loadJSON(filePath);
         if (!picks) continue;
 
-        console.log(`\n📋 比对: ${file}`);
+        console.log(`\n── 比对: ${file} ──`);
         const stats = comparePicks(picks, results);
 
-        // Log results
         ['sf', 'bqc', 'jq'].forEach(g => {
             const s = stats[g];
             if (s.total > 0) {
@@ -311,50 +425,74 @@ async function main() {
                 console.log(`  ${name}: ${s.correct}/${s.total} (${rate}%)`);
                 s.matches.forEach(m => {
                     const mark = m.hit || (m.homeHit && m.awayHit) ? '✅' : '❌';
-                    console.log(`    ${mark} ${m.match}: 推${m.pick || m.pickHome + '/' + m.pickAway} 实${m.actual || m.actualHome + '/' + m.actualAway} ${m.score || ''}`);
+                    const conf = m.confidence ? ` [${m.confidence}]` : '';
+                    console.log(`    ${mark} ${m.match}: 推${m.pick || m.pickHome + '/' + m.pickAway} 实${m.actual || m.actualHome + '/' + m.actualAway} ${m.score || ''}${conf}`);
                 });
             }
         });
 
-        // Mark as compared
         picks.status = 'compared';
         picks.comparison = {
             date: new Date().toISOString(),
-            sf: stats.sf,
-            bqc: stats.bqc,
-            jq: stats.jq,
+            sf: stats.sf, bqc: stats.bqc, jq: stats.jq,
             resultsCount: results.length
         };
         fs.writeFileSync(filePath, JSON.stringify(picks, null, 2), 'utf8');
-
         allAccuracy.push(stats);
     }
 
-    // Aggregate and evolve model
-    const aggStats = { sf: { total: 0, correct: 0 }, bqc: { total: 0, correct: 0 }, jq: { total: 0, correct: 0 } };
+    // Aggregate
+    const aggStats = {
+        sf: { total: 0, correct: 0, byConfidence: {}, byStrategy: {}, byLeague: {}, matches: [] },
+        bqc: { total: 0, correct: 0 },
+        jq: { total: 0, correct: 0 }
+    };
     allAccuracy.forEach(s => {
         ['sf', 'bqc', 'jq'].forEach(g => {
             aggStats[g].total += s[g].total;
             aggStats[g].correct += s[g].correct;
         });
+        // Merge SF sub-category stats
+        for (const [conf, data] of Object.entries(s.sf.byConfidence || {})) {
+            if (!aggStats.sf.byConfidence[conf]) aggStats.sf.byConfidence[conf] = { total: 0, correct: 0 };
+            aggStats.sf.byConfidence[conf].total += data.total;
+            aggStats.sf.byConfidence[conf].correct += data.correct;
+        }
+        for (const [strat, data] of Object.entries(s.sf.byStrategy || {})) {
+            if (!aggStats.sf.byStrategy[strat]) aggStats.sf.byStrategy[strat] = { total: 0, correct: 0 };
+            aggStats.sf.byStrategy[strat].total += data.total;
+            aggStats.sf.byStrategy[strat].correct += data.correct;
+        }
+        for (const [league, data] of Object.entries(s.sf.byLeague || {})) {
+            if (!aggStats.sf.byLeague[league]) aggStats.sf.byLeague[league] = { total: 0, correct: 0 };
+            aggStats.sf.byLeague[league].total += data.total;
+            aggStats.sf.byLeague[league].correct += data.correct;
+        }
+        aggStats.sf.matches.push(...(s.sf.matches || []));
     });
 
     const totalPicks = aggStats.sf.total + aggStats.bqc.total + aggStats.jq.total;
     const totalCorrect = aggStats.sf.correct + aggStats.bqc.correct + aggStats.jq.correct;
 
     if (totalPicks > 0) {
-        console.log(`\n📊 本次汇总: ${totalCorrect}/${totalPicks} (${(totalCorrect / totalPicks * 100).toFixed(1)}%)`);
+        console.log(`\n── 汇总: ${totalCorrect}/${totalPicks} (${(totalCorrect / totalPicks * 100).toFixed(1)}%) ──`);
         params = evolveParams(params, aggStats);
         fs.writeFileSync(PARAMS_FILE, JSON.stringify(params, null, 2), 'utf8');
         console.log(`\n🧠 模型已进化到 v${params.version}`);
-        console.log(`  累计准确率: ${(params.accuracy.rate * 100).toFixed(1)}% (${params.accuracy.correct}/${params.accuracy.total})`);
+        console.log(`  累计准确率: ${(params.accuracy.rate * 100).toFixed(1)}%`);
         console.log(`  权重: Kelly=${params.weights.kelly} EV=${params.weights.ev} Implied=${params.weights.implied}`);
+        console.log(`  动量: Kelly=${params.momentum.kelly} EV=${params.momentum.ev} Implied=${params.momentum.implied}`);
+        if (Object.keys(params.leagueParams).length > 0) {
+            console.log(`  联赛参数: ${Object.keys(params.leagueParams).length} 个联赛已学习`);
+        }
     }
 
     // Save accuracy summary
     const accuracySummary = {
         lastUpdate: new Date().toISOString(),
         cumulative: params.accuracy,
+        strategyAccuracy: params.strategyAccuracy,
+        leagueParams: params.leagueParams,
         recentSessions: params.history?.slice(-10) || [],
         modelVersion: params.version
     };
