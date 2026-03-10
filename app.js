@@ -1010,32 +1010,33 @@ function displayLatestPicks(picks) {
   const container = $('#fb-ai-picks-display');
   if (!container) return;
 
+  // Update model version tag
+  const verTag = $('#fb-ai-model-ver');
+  if (verTag) verTag.textContent = `v${picks.modelVersion || 1}`;
+
   const game = currentGameType || 'sf';
   const gamePicks = picks[game];
   if (!gamePicks?.picks?.length) {
-    container.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:0.5rem">暂无当前游戏类型的AI推荐</p>';
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:0.72rem;text-align:center;padding:0.3rem">暂无推荐</p>';
     return;
   }
 
-  const accuracy = picks.modelAccuracy ? `(模型准确率: ${(picks.modelAccuracy * 100).toFixed(1)}%)` : '';
-  let html = `<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;">📅 ${picks.date} ${picks.time || ''} | v${picks.modelVersion || 1} ${accuracy}</div>`;
+  let html = '';
 
   if (game === 'jq') {
     gamePicks.picks.forEach(p => {
-      html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem;">
-        <span style="font-weight:600;min-width:120px;">${p.home} vs ${p.away}</span>
-        <span style="color:var(--cyan);font-weight:700;">主${p.homePick} 客${p.awayPick}</span>
-        <span style="color:${p.confidence === '高' ? 'var(--green)' : p.confidence === '中' ? 'var(--yellow)' : 'var(--text-muted)'};font-size:0.72rem;">${p.confidence}</span>
+      html += `<div style="display:flex;align-items:center;gap:0.4rem;padding:0.2rem 0;font-size:0.72rem;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-weight:600;min-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.home} vs ${p.away}</span>
+        <span style="color:var(--cyan);font-weight:700;font-size:0.7rem;">主${p.homePick} 客${p.awayPick}</span>
+        <span style="color:${p.confidence === '高' ? 'var(--green)' : 'var(--text-muted)'};font-size:0.62rem;">${p.confidence}</span>
       </div>`;
     });
   } else {
     gamePicks.picks.forEach(p => {
-      const topStr = p.topPicks?.map(t => `${t.label}(${t.prob}%)`).join(' / ') || '';
-      html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem;">
-        <span style="font-weight:600;min-width:120px;">${p.home || ''} vs ${p.away || ''}</span>
-        <span style="color:var(--cyan);font-weight:700;">${p.pick}</span>
-        <span style="color:${p.confidence === '高' ? 'var(--green)' : p.confidence === '中' ? 'var(--yellow)' : 'var(--text-muted)'};font-size:0.72rem;">${p.confidence}</span>
-        <span style="font-size:0.72rem;color:var(--text-muted);">${topStr}</span>
+      html += `<div style="display:flex;align-items:center;gap:0.4rem;padding:0.2rem 0;font-size:0.72rem;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-weight:600;min-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.home || ''} vs ${p.away || ''}</span>
+        <span style="color:var(--cyan);font-weight:700;font-size:0.7rem;">${p.pick}</span>
+        <span style="color:${p.confidence === '高' ? 'var(--green)' : 'var(--text-muted)'};font-size:0.62rem;">${p.confidence}</span>
       </div>`;
     });
   }

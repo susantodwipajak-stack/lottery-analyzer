@@ -974,6 +974,181 @@ body {
   font-size: 0.82rem;
 }
 
+/* === Top Grid: Instructions + AI Picks Side-by-Side === */
+.fb-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.fb-top-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.fb-top-right {
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* === AI Picks Mini Card === */
+.fb-ai-picks-mini {
+  padding: 0.6rem 0.75rem;
+  height: 100%;
+  overflow-y: auto;
+  max-height: 180px;
+  background: rgba(0, 210, 255, 0.02);
+}
+
+.fb-ai-picks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--cyan);
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(0, 210, 255, 0.1);
+}
+
+.fb-ai-model-tag {
+  font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(0, 210, 255, 0.1);
+  color: var(--cyan);
+  font-weight: 600;
+}
+
+/* === Parlay Options Inline === */
+.parlay-options-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.cz-bet-sep {
+  color: rgba(255, 255, 255, 0.1);
+  margin: 0 0.3rem;
+  font-size: 0.9rem;
+}
+
+/* === Collapsible Config === */
+.fb-config-details {
+  margin-top: 0.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.fb-config-summary {
+  padding: 0.5rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fb-config-summary::-webkit-details-marker { display: none; }
+.fb-config-summary::before { content: '▸'; transition: transform 0.2s; }
+.fb-config-details[open] .fb-config-summary::before { transform: rotate(90deg); }
+
+.fb-config-inner {
+  padding: 0.5rem 1rem 0.75rem;
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.fb-config-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.fb-config-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.fb-config-input {
+  width: 80px !important;
+  height: 28px !important;
+  font-size: 0.78rem !important;
+  padding: 0 0.5rem !important;
+}
+
+.fb-config-input-wide {
+  width: 160px !important;
+}
+
+/* === Collapsible Archive === */
+.fb-archive-details {
+  margin-top: 0.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.fb-archive-summary {
+  padding: 0.6rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fb-archive-summary::-webkit-details-marker { display: none; }
+.fb-archive-summary::before { content: '▸'; transition: transform 0.2s; }
+.fb-archive-details[open] .fb-archive-summary::before { transform: rotate(90deg); }
+
+.fb-archive-inner {
+  padding: 0.5rem 1rem 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* === Recommendation Card === */
+.fb-rec-card {
+  border-left: 3px solid var(--gold);
+}
+
+/* === Responsive === */
+@media (max-width: 900px) {
+  .fb-top-grid {
+    grid-template-columns: 1fr;
+  }
+  .fb-top-right {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .fb-ai-picks-mini {
+    max-height: 120px;
+  }
+  .cz-bet-bar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .cz-bet-left {
+    flex-wrap: wrap;
+  }
+}
+
 /* Odds Toggle (keep for backward compat) */
 .odds-toggle {
   display: flex;
