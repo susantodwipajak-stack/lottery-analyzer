@@ -348,6 +348,8 @@ function switchGameTab(gameType) {
   updateTableHeader(gameType);
   // Re-render matches
   if (matchData.length > 0) renderMatchList(matchData);
+  // Refresh AI picks display for new game type
+  if (window._latestFbPicks) displayLatestPicks(window._latestFbPicks);
 }
 
 function updateTableHeader(gameType) {
@@ -988,6 +990,57 @@ function initFbPredictionUI() {
   renderFbArchive();
   const perf = getFbStrategyPerf();
   if (perf && Object.values(perf).some(d => d.total > 0)) renderFbStrategyPerf();
+  autoLoadLatestPicks();
+}
+
+// ---- 自动加载最新AI推荐方案 ----
+async function autoLoadLatestPicks() {
+  try {
+    const resp = await fetch('data/fb-picks/latest.json?t=' + Date.now());
+    if (!resp.ok) return;
+    const picks = await resp.json();
+    if (!picks?.date) return;
+    window._latestFbPicks = picks;
+    displayLatestPicks(picks);
+  } catch { /* 无推荐方案时忽略 */ }
+}
+
+function displayLatestPicks(picks) {
+  if (!picks) return;
+  const container = $('#fb-ai-picks-display');
+  if (!container) return;
+
+  const game = currentGameType || 'sf';
+  const gamePicks = picks[game];
+  if (!gamePicks?.picks?.length) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:0.5rem">暂无当前游戏类型的AI推荐</p>';
+    return;
+  }
+
+  const accuracy = picks.modelAccuracy ? `(模型准确率: ${(picks.modelAccuracy * 100).toFixed(1)}%)` : '';
+  let html = `<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;">📅 ${picks.date} ${picks.time || ''} | v${picks.modelVersion || 1} ${accuracy}</div>`;
+
+  if (game === 'jq') {
+    gamePicks.picks.forEach(p => {
+      html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem;">
+        <span style="font-weight:600;min-width:120px;">${p.home} vs ${p.away}</span>
+        <span style="color:var(--cyan);font-weight:700;">主${p.homePick} 客${p.awayPick}</span>
+        <span style="color:${p.confidence === '高' ? 'var(--green)' : p.confidence === '中' ? 'var(--yellow)' : 'var(--text-muted)'};font-size:0.72rem;">${p.confidence}</span>
+      </div>`;
+    });
+  } else {
+    gamePicks.picks.forEach(p => {
+      const topStr = p.topPicks?.map(t => `${t.label}(${t.prob}%)`).join(' / ') || '';
+      html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem;">
+        <span style="font-weight:600;min-width:120px;">${p.home || ''} vs ${p.away || ''}</span>
+        <span style="color:var(--cyan);font-weight:700;">${p.pick}</span>
+        <span style="color:${p.confidence === '高' ? 'var(--green)' : p.confidence === '中' ? 'var(--yellow)' : 'var(--text-muted)'};font-size:0.72rem;">${p.confidence}</span>
+        <span style="font-size:0.72rem;color:var(--text-muted);">${topStr}</span>
+      </div>`;
+    });
+  }
+
+  container.innerHTML = html;
 }
 
 $('#btn-fetch-matches').addEventListener('click', fetchFootballMatches);
