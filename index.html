@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="中国体育彩票深度分析工具 — 竞彩足球赔率分析、凯利指数、大乐透号码统计、走势图、冷热号分析、实时数据更新">
   <title>体彩深度分析 V2.0 — 竞彩足球 & 大乐透</title>
-  <link rel="stylesheet" href="index.css?v=20260311">
+  <link rel="stylesheet" href="index.css?v=20260311b">
   <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
@@ -18,18 +18,17 @@
   <!-- Toast Notification Container -->
   <div id="toast-container"></div>
 
-  <!-- Header -->
-  <header class="app-header">
-    <h1>⚽ 体彩深度分析 🎱</h1>
-    <p class="subtitle">竞彩足球赔率分析 · 大乐透号码统计 · 走势图分析 · 智能计算引擎</p>
-    <div class="header-stats">
-      <span class="header-stat"><span class="pulse-dot"></span> 系统运行中</span>
-      <span class="header-stat" id="header-data-count">📊 已存 0 期数据</span>
-      <span class="header-stat" id="header-last-update">🕐 --</span>
-      <span class="realtime-status" id="realtime-indicator">
-        <span class="realtime-dot"></span>
-        <span id="realtime-text">实时监控就绪</span>
-      </span>
+  <!-- Header (Compact) -->
+  <header class="app-header-compact">
+    <div class="header-left">
+      <span class="header-logo">⚽ 体彩深度分析</span>
+      <span class="header-ver">V2</span>
+    </div>
+    <div class="header-right">
+      <span class="header-indicator"><span class="pulse-dot"></span>运行中</span>
+      <span class="header-indicator" id="header-data-count">📊 0期</span>
+      <span class="header-indicator" id="header-last-update">🕐 --</span>
+      <span class="header-indicator" id="realtime-indicator"><span class="realtime-dot" id="realtime-text"></span></span>
     </div>
   </header>
 
@@ -380,9 +379,9 @@
           <div class="chart-container"><canvas id="sum-chart" height="200"></canvas></div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title"><span class="icon">📊</span> 中奖概率对照表</div>
-        <div style="overflow-x:auto;">
+      <details class="card collapsible-card">
+        <summary class="card-title" style="cursor:pointer;"><span class="icon">📊</span> 中奖概率对照表 <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400;">（点击展开）</span></summary>
+        <div style="overflow-x:auto;margin-top:0.75rem;">
           <table class="data-table" id="prob-table">
             <thead>
               <tr>
@@ -396,7 +395,7 @@
             <tbody></tbody>
           </table>
         </div>
-      </div>
+      </details>
     </div>
 
     <div class="section-divider"></div>
@@ -405,7 +404,20 @@
     <div class="card">
       <div class="card-title"><span class="icon">🔢</span> 大乐透选号</div>
       <div class="section-label"><span class="dot red"></span> 前区（从 01-35 选 5 个）</div>
-      <div class="number-grid" id="front-zone"></div>
+      <div class="dlt-zone-grid">
+        <div class="zone-group">
+          <div class="zone-label">一区 1-12</div>
+          <div class="number-grid zone-numbers" id="front-zone-1"></div>
+        </div>
+        <div class="zone-group">
+          <div class="zone-label">二区 13-24</div>
+          <div class="number-grid zone-numbers" id="front-zone-2"></div>
+        </div>
+        <div class="zone-group">
+          <div class="zone-label">三区 25-35</div>
+          <div class="number-grid zone-numbers" id="front-zone-3"></div>
+        </div>
+      </div>
       <div class="section-label mt-1"><span class="dot blue"></span> 后区（从 01-12 选 2 个）</div>
       <div class="number-grid" id="back-zone"></div>
       <div class="quick-actions">
@@ -656,7 +668,7 @@
   </footer>
 
   <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
-  <script src="app.js?v=20260311"></script>
+  <script src="app.js?v=20260311b"></script>
 </body>
 
 </html>

@@ -1301,19 +1301,24 @@ function resetData() {
 
 // ---- Number Grid & Selection ----
 function initNumberGrid() {
-  const frontZone = $('#front-zone'), backZone = $('#back-zone');
-  frontZone.innerHTML = ''; backZone.innerHTML = '';
+  const zone1 = $('#front-zone-1'), zone2 = $('#front-zone-2'), zone3 = $('#front-zone-3'), backZone = $('#back-zone');
+  if (zone1) zone1.innerHTML = '';
+  if (zone2) zone2.innerHTML = '';
+  if (zone3) zone3.innerHTML = '';
+  if (backZone) backZone.innerHTML = '';
   for (let i = 1; i <= 35; i++) {
     const ball = document.createElement('div'); ball.className = 'num-ball';
     ball.textContent = String(i).padStart(2, '0'); ball.dataset.num = i; ball.dataset.zone = 'front';
     ball.addEventListener('click', () => toggleBall(ball, 'front'));
-    frontZone.appendChild(ball);
+    if (i <= 12) { if (zone1) zone1.appendChild(ball); }
+    else if (i <= 24) { if (zone2) zone2.appendChild(ball); }
+    else { if (zone3) zone3.appendChild(ball); }
   }
   for (let i = 1; i <= 12; i++) {
     const ball = document.createElement('div'); ball.className = 'num-ball';
     ball.textContent = String(i).padStart(2, '0'); ball.dataset.num = i; ball.dataset.zone = 'back';
     ball.addEventListener('click', () => toggleBall(ball, 'back'));
-    backZone.appendChild(ball);
+    if (backZone) backZone.appendChild(ball);
   }
 }
 
@@ -1321,7 +1326,8 @@ function toggleBall(ball, zone) { ball.classList.toggle(zone === 'front' ? 'sele
 
 function getSelectedNums(zone) {
   const cls = zone === 'front' ? 'selected-front' : 'selected-back';
-  return Array.from($$(`#${zone}-zone .num-ball.${cls}`)).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
+  const selector = zone === 'front' ? '.dlt-zone-grid .num-ball.' + cls : '#back-zone .num-ball.' + cls;
+  return Array.from($$(selector)).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
 }
 
 function clearSelection() {
@@ -1335,7 +1341,7 @@ function randomSelect() {
   const frontNums = [], backNums = [];
   while (frontNums.length < 5) { const n = Math.floor(Math.random() * 35) + 1; if (!frontNums.includes(n)) frontNums.push(n); }
   while (backNums.length < 2) { const n = Math.floor(Math.random() * 12) + 1; if (!backNums.includes(n)) backNums.push(n); }
-  frontNums.forEach(n => { const ball = $(`#front-zone .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-front'); });
+  frontNums.forEach(n => { const ball = $(`.dlt-zone-grid .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-front'); });
   backNums.forEach(n => { const ball = $(`#back-zone .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-back'); });
   showToast('已随机选取 5+2', 'success');
 }
@@ -1346,7 +1352,7 @@ function smartQuickPick() {
   const front = pickFrontForStrategy({ wFreq: 0.3, wMiss: 0.35, wRecent: 0.35 });
   const back = pickBackForStrategy({ wFreq: 0.3, wMiss: 0.35 });
   clearSelection();
-  front.forEach(n => { const ball = $(`#front-zone .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-front'); });
+  front.forEach(n => { const ball = $(`.dlt-zone-grid .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-front'); });
   back.forEach(n => { const ball = $(`#back-zone .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-back'); });
   showToast('智能选号完成', 'success');
 }
