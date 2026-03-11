@@ -1,11 +1,16 @@
 {
     "name": "lottery-analyzer",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "private": true,
     "description": "体彩深度分析 — 自动化数据抓取与智能预测",
     "scripts": {
         "fetch": "node scripts/fetch-data.js",
+        "fetch-matches": "node scripts/fetch-matches.js",
         "analyze": "node scripts/analyze.js",
-        "update": "npm run fetch && npm run analyze"
+        "fb-picks": "node scripts/generate-fb-picks.js",
+        "compare": "node scripts/compare-fb-results.js",
+        "update": "npm run fetch && npm run analyze",
+        "update-fb": "npm run fetch-matches && npm run fb-picks && npm run compare",
+        "update-all": "npm run fetch-matches && npm run fb-picks && npm run compare && npm run fetch && npm run analyze"
     }
-}
+}
