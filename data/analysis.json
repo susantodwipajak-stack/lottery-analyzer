@@ -1,9 +1,9 @@
 {
-  "lastUpdate": "2026-03-11T08:06:12.403Z",
+  "lastUpdate": "2026-03-11T11:07:49.239Z",
   "latestIssue": "26024",
   "nextIssue": "26025",
   "analysisRange": 101,
-  "modelVersion": 3,
+  "modelVersion": 4,
   "summary": {
     "hotFront": [
       9,
@@ -223,10 +223,10 @@
         "label": "❄️ 冷号回补",
         "front": [
           7,
+          8,
           15,
           20,
-          22,
-          33
+          22
         ],
         "back": [
           2,
@@ -237,11 +237,11 @@
         "strategyId": "balanced",
         "label": "⚖️ 均衡推荐",
         "front": [
-          5,
           7,
-          14,
+          9,
+          12,
           15,
-          22
+          32
         ],
         "back": [
           2,
@@ -260,18 +260,18 @@
         ],
         "back": [
           2,
-          12
+          5
         ]
       },
       {
         "strategyId": "adaptive",
         "label": "🎯 自适应",
         "front": [
-          3,
           5,
           12,
           15,
-          16
+          23,
+          32
         ],
         "back": [
           2,
@@ -282,15 +282,15 @@
         "strategyId": "random",
         "label": "🎲 随机基准",
         "front": [
-          2,
-          5,
-          29,
-          34,
-          35
+          13,
+          17,
+          24,
+          25,
+          26
         ],
         "back": [
-          7,
-          11
+          5,
+          6
         ]
       }
     ]
