@@ -131,11 +131,12 @@ function generateSFPicks(matches, params) {
         // Bayesian smoothing
         const fair = bayesianSmooth(fairRaw);
 
-        // Adjust for home advantage and draw bias (league-specific)
+        // Adjust for home advantage and draw bias (multiplicative, not additive)
+        // Odds already price in home advantage; this is a small correction factor
         const adj = [
-            fair[0] + lp.homeAdv,
-            fair[1] + lp.drawBias,
-            fair[2] - lp.homeAdv - lp.drawBias
+            fair[0] * (1 + lp.homeAdv),       // e.g. *1.08 — slight home boost
+            fair[1] * (1 + lp.drawBias * 2),   // e.g. *1.04 — slight draw boost
+            fair[2] * (1 - lp.homeAdv * 0.5)   // e.g. *0.96 — slight away reduce
         ];
         const adjSum = adj.reduce((a, b) => a + b, 0);
         const probs = adj.map(p => Math.max(0.05, p / adjSum));
@@ -143,14 +144,22 @@ function generateSFPicks(matches, params) {
         // Run all 3 strategies
         const stratResults = STRATEGIES.map(strat => {
             const w = strat.weights;
-            const results = ['胜', '平', '负'].map((label, i) => {
+            const raw = ['胜', '平', '负'].map((label, i) => {
                 const kelly = calcKelly(odds[i], probs[i]);
                 const ev = calcEV(odds[i], probs[i]);
-                const score = w.kelly * Math.max(0, kelly * 10)
-                    + w.ev * Math.max(0, ev * 10)
-                    + w.implied * probs[i];
-                return { label, odds: odds[i], prob: probs[i], kelly, ev, score };
+                return { label, odds: odds[i], prob: probs[i], kelly: Math.max(0, kelly), ev: Math.max(0, ev) };
             });
+
+            // Bug#1 fix: normalize each factor to [0,1] before combining
+            const kMax = Math.max(0.001, ...raw.map(r => r.kelly));
+            const eMax = Math.max(0.001, ...raw.map(r => r.ev));
+            const pMax = Math.max(0.001, ...raw.map(r => r.prob));
+            const results = raw.map(r => ({
+                ...r,
+                score: w.kelly * (r.kelly / kMax)
+                     + w.ev * (r.ev / eMax)
+                     + w.implied * (r.prob / pMax)
+            }));
             results.sort((a, b) => b.score - a.score);
             return {
                 strategyId: strat.id,
@@ -168,7 +177,8 @@ function generateSFPicks(matches, params) {
         let bestWeight = -1;
 
         stratResults.forEach(sr => {
-            const acc = stratAccuracy[sr.strategyId];
+            // Bug#3 fix: check virtual_ key first (larger sample), then actual key
+            const acc = stratAccuracy[`virtual_${sr.strategyId}`] || stratAccuracy[sr.strategyId];
             const accuracyBonus = acc && acc.total >= 5 ? acc.correct / acc.total : 0.33;
             const combined = sr.score * 0.6 + accuracyBonus * 0.4;
             if (combined > bestWeight) { bestWeight = combined; bestStrat = sr; }
@@ -232,10 +242,15 @@ function generateBQCPicks(matches, params) {
             [0.30, 0.40, 0.30], // HT draw -> FT
             [0.10, 0.15, 0.75]  // HT loss -> FT
         ];
-        // Adjust transitions based on match strength
+        // Adjust transitions based on match strength + Bug#6 fix: renormalize rows
         const strength = fair[0] - fair[2]; // positive = home stronger
         transitions[0][0] = Math.min(0.85, transitions[0][0] + strength * 0.1);
         transitions[2][2] = Math.min(0.85, transitions[2][2] - strength * 0.1);
+        // Renormalize each row so probabilities sum to 1
+        transitions.forEach(row => {
+            const rSum = row.reduce((a, b) => a + b, 0);
+            if (rSum > 0) row.forEach((_, i) => row[i] /= rSum);
+        });
 
         const combos = [];
         for (let h = 0; h < 3; h++) {
@@ -251,7 +266,7 @@ function generateBQCPicks(matches, params) {
         return {
             matchNum: m.matchNum, league: m.league, home: m.home, away: m.away, date: m.date,
             pick: combos[0].label,
-            confidence: combos[0].prob > 0.22 ? '高' : combos[0].prob > 0.12 ? '中' : '低',
+            confidence: combos[0].prob > 0.30 ? '高' : combos[0].prob > 0.18 ? '中' : '低',
             topPicks: combos.slice(0, 3).map(c => ({ label: c.label, prob: +(c.prob * 100).toFixed(1) }))
         };
     });
@@ -283,8 +298,9 @@ function generateJQPicks(matches, params) {
         }
 
         // Home and away expected goals based on strength + league average
-        const homeLambda = avgGoals * 0.55 * (0.5 + homeStr); // Home typically scores ~55% of goals
-        const awayLambda = avgGoals * 0.45 * (0.5 + awayStr);
+        // Bug#7 fix: simplified lambda — home gets proportional share of avgGoals
+        const homeLambda = avgGoals * homeStr;
+        const awayLambda = avgGoals * awayStr;
 
         const hp = poissonDist(homeLambda), ap = poissonDist(awayLambda);
         const hSum = hp.reduce((a, b) => a + b, 0), aSum = ap.reduce((a, b) => a + b, 0);
@@ -328,7 +344,8 @@ async function main() {
 
     // Generate picks for each game type
     const sfPicks = generateSFPicks(matches.slice(0, 14), params);
-    const r9Picks = generateSFPicks(matches.slice(0, 14), params);
+    // Bug#5 fix: R9 reuses SF results instead of recalculating
+    const r9Picks = [...sfPicks];
     const bqcPicks = generateBQCPicks(matches, params);
     const jqPicks = generateJQPicks(matches, params);
 

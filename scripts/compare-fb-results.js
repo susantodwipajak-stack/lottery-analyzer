@@ -45,7 +45,7 @@ async function fetchResults() {
                 for (const group of json.value.matchInfoList) {
                     const subs = group.subMatchList || [group];
                     for (const m of subs) {
-                        if (m.matchStatus === 'Played' || m.homeScore !== undefined) {
+                        if (m.matchStatus === 'Played' || (m.homeScore !== undefined && m.homeScore !== null && m.homeScore !== '')) {
                             results.push({
                                 matchNum: m.matchNum || m.matchId || '',
                                 home: m.homeTeamAbbName || m.homeTeamAllName || '',
@@ -63,9 +63,33 @@ async function fetchResults() {
                 }
                 return results;
             }
+        },
+        {
+            // Bug#4 fix: add historical results API for completed matches
+            name: '历史结果',
+            url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchResultV1.qry?matchPage=0&matchBeginDate=' + getYesterday() + '&matchEndDate=' + getToday() + '&leagueId=&pageSize=100&pageNo=1',
+            extract: json => {
+                if (!json?.value?.matchResult) return [];
+                const list = Array.isArray(json.value.matchResult) ? json.value.matchResult : [];
+                return list.map(m => ({
+                    matchNum: m.matchNum || '',
+                    home: m.homeTeamAbbName || m.homeTeamAllName || '',
+                    away: m.awayTeamAbbName || m.awayTeamAllName || '',
+                    league: m.leagueAbbName || '',
+                    homeScore: parseInt(m.homeScore) || 0,
+                    awayScore: parseInt(m.awayScore) || 0,
+                    halfHomeScore: parseInt(m.homeHalfScore) || 0,
+                    halfAwayScore: parseInt(m.awayHalfScore) || 0,
+                    result: getResult(parseInt(m.homeScore) || 0, parseInt(m.awayScore) || 0),
+                    date: m.matchDate || ''
+                })).filter(m => m.home && m.away);
+            }
         }
     ];
 
+    // Merge results from all successful APIs
+    let allResults = [];
+    const seen = new Set();
     for (const api of apis) {
         try {
             const resp = await fetch(api.url, { headers: HEADERS, signal: AbortSignal.timeout(15000) });
@@ -73,15 +97,23 @@ async function fetchResults() {
             const json = await resp.json();
             const results = api.extract(json);
             if (results.length > 0) {
-                console.log(`  ✅ 获取 ${results.length} 场已完赛结果`);
-                return results;
+                console.log(`  ✅ ${api.name}: 获取 ${results.length} 场已完赛结果`);
+                for (const r of results) {
+                    const key = `${r.home}vs${r.away}`.replace(/\s/g, '');
+                    if (!seen.has(key)) { seen.add(key); allResults.push(r); }
+                }
             }
         } catch (e) {
             console.log(`  ⚠️ ${api.name} 失败: ${e.message}`);
         }
     }
-    return [];
+    if (allResults.length > 0) console.log(`  📊 合计 ${allResults.length} 场不重复结果`);
+    return allResults;
 }
+
+// Bug#4 helper: date strings
+function getToday() { return new Date().toISOString().slice(0, 10); }
+function getYesterday() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); }
 
 function getResult(homeScore, awayScore) {
     if (homeScore > awayScore) return '胜';
@@ -172,7 +204,7 @@ function comparePicks(picks, results) {
         }
     }
 
-    // Compare 进球彩
+    // Compare 进球彩 — Bug#11 fix: partial match scoring
     if (picks.jq?.picks) {
         for (const p of picks.jq.picks) {
             const result = findResult(p.home, p.away);
@@ -182,7 +214,9 @@ function comparePicks(picks, results) {
             stats.jq.total++;
             const homeHit = p.homePick === actualHome;
             const awayHit = p.awayPick === actualAway;
-            if (homeHit && awayHit) stats.jq.correct++;
+            // Full match = 1 correct, partial (one side) = 0.5 correct
+            if (homeHit && awayHit) stats.jq.correct += 1;
+            else if (homeHit || awayHit) stats.jq.correct += 0.5;
             stats.jq.matches.push({
                 match: `${p.home} vs ${p.away}`,
                 pickHome: p.homePick, pickAway: p.awayPick,
@@ -210,7 +244,8 @@ function evolveParams(params, stats) {
     if (!params.leagueParams) params.leagueParams = {};
     if (!params.strategyAccuracy) params.strategyAccuracy = {};
 
-    // ─── 1. Update cumulative accuracy with decay ───
+    // ─── 1. Bug#2 fix: calculate delta BEFORE updating accuracy ───
+    const oldRate = params.accuracy.rate || 0;
     const decay = 0.95; // Historical data decays 5% per session
     params.accuracy.total = params.accuracy.total * decay + totalPicks;
     params.accuracy.correct = params.accuracy.correct * decay + totalCorrect;
@@ -250,7 +285,8 @@ function evolveParams(params, stats) {
     const learnRate = 0.03;
     const momentumFactor = 0.7;
 
-    const delta = sessionRate - params.accuracy.rate;
+    // Bug#2 fix: use oldRate (before this session's update) for meaningful delta
+    const delta = sessionRate - oldRate;
 
     if (delta > 0.05) {
         // Better than average → reinforce current direction
@@ -328,6 +364,10 @@ function evolveParams(params, stats) {
         } else if (sfRate > 0.50) {
             gw.homeAdv = Math.min(0.15, (gw.homeAdv || 0.08) + 0.005);
         }
+        // Bug#12 fix: sync gameWeights.sf back into leagueParams defaults
+        if (!params.leagueParams['default']) params.leagueParams['default'] = { homeAdv: 0.08, drawBias: 0.02, avgGoals: 2.5, samples: 0 };
+        params.leagueParams['default'].homeAdv = gw.homeAdv;
+        params.leagueParams['default'].drawBias = gw.drawBias;
     }
 
     if (stats.jq.total >= 2) {

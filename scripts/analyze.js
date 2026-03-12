@@ -247,7 +247,7 @@ const DEFAULT_STRATEGIES = [
     { id: 'cold',     name: '❄️ 冷号回补', wFreq: 0.10, wMiss: 0.55, wZone: 0.15, wTail: 0.10, wRand: 0.10 },
     { id: 'balanced', name: '⚖️ 均衡推荐', wFreq: 0.30, wMiss: 0.25, wZone: 0.20, wTail: 0.15, wRand: 0.10 },
     { id: 'pattern',  name: '📊 模式匹配', wFreq: 0.20, wMiss: 0.15, wZone: 0.30, wTail: 0.25, wRand: 0.10 },
-    { id: 'adaptive', name: '🎯 自适应',   wFreq: 0.30, wMiss: 0.25, wZone: 0.20, wTail: 0.15, wRand: 0.10 },
+    { id: 'adaptive', name: '🎯 自适应',   wFreq: 0.40, wMiss: 0.15, wZone: 0.15, wTail: 0.10, wRand: 0.20 },
     { id: 'random',   name: '🎲 随机基准', wFreq: 0, wMiss: 0, wZone: 0, wTail: 0, wRand: 1 }
 ];
 
