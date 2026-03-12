@@ -1,9 +1,9 @@
 {
-  "lastUpdate": "2026-03-12T09:11:33.868Z",
+  "lastUpdate": "2026-03-12T11:07:00.701Z",
   "latestIssue": "26025",
   "nextIssue": "26026",
   "analysisRange": 102,
-  "modelVersion": 9,
+  "modelVersion": 10,
   "summary": {
     "hotFront": [
       9,
@@ -238,9 +238,9 @@
         "label": "⚖️ 均衡推荐",
         "front": [
           5,
+          8,
           9,
           12,
-          14,
           32
         ],
         "back": [
@@ -252,8 +252,8 @@
         "strategyId": "pattern",
         "label": "📊 模式匹配",
         "front": [
-          3,
           5,
+          9,
           12,
           13,
           22
@@ -270,27 +270,27 @@
           5,
           8,
           9,
-          12,
+          10,
           26
         ],
         "back": [
-          5,
-          12
+          1,
+          5
         ]
       },
       {
         "strategyId": "random",
         "label": "🎲 随机基准",
         "front": [
+          1,
+          3,
           8,
-          10,
-          32,
-          33,
-          35
+          20,
+          23
         ],
         "back": [
-          4,
-          7
+          10,
+          12
         ]
       }
     ]
