@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * 📊 DLT 深度分析与智能预测脚本 V2.0
+ * 📊 DLT 深度分析与智能预测脚本 V4.0
  * 
  * 改进:
  *   - 区间/奇偶/连号/和值/尾数 5维分析
  *   - 多窗口(5/20/100期)加权评分
  *   - Per-strategy权重EMA进化
  *   - 和值约束 + 连号注入
+ *   - 4高级算法集成(马尔/间隔/贝叶斯/蒙特卡洛)
  *   - 交叉验证回测
  * 
  * 运行: node scripts/analyze.js
@@ -19,6 +20,9 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
 const ANALYSIS_FILE = path.join(DATA_DIR, 'analysis.json');
+
+// 导入集成引擎
+const { ensembleScores, markovScores, pickTopN } = require('./ensemble-engine');
 
 // ========== 基础工具 ==========
 
@@ -247,11 +251,13 @@ function randomPick(max, count) {
     return result.sort((a, b) => a - b);
 }
 
-// ========== 策略定义 V3 (回测优化) ==========
-// 排序: 按82期回测前区命中率排名
+// ========== 策略定义 V4 (集成引擎) ==========
+// 排序: ensemble(新) > adaptive > markov(新) > pattern > hot > balanced > cold > random
 
 const DEFAULT_STRATEGIES = [
+    { id: 'ensemble', name: '🧠 集成·四算法', engine: 'ensemble' },
     { id: 'adaptive', name: '🎯 首推·自适应', wFreq: 0.40, wMiss: 0.15, wZone: 0.15, wTail: 0.10, wRand: 0.20 },
+    { id: 'markov',   name: '🔗 马尔可夫链', engine: 'markov' },
     { id: 'pattern',  name: '📊 模式匹配',   wFreq: 0.20, wMiss: 0.15, wZone: 0.30, wTail: 0.25, wRand: 0.10 },
     { id: 'hot',      name: '🔥 热号趋势',   wFreq: 0.55, wMiss: 0.05, wZone: 0.20, wTail: 0.10, wRand: 0.10 },
     { id: 'balanced', name: '⚖️ 均衡推荐',   wFreq: 0.30, wMiss: 0.25, wZone: 0.20, wTail: 0.15, wRand: 0.10 },
@@ -446,9 +452,21 @@ function main() {
         if (strat.id === 'random') {
             front = randomPick(35, 5);
             back = randomPick(12, 2);
+        } else if (strat.engine === 'ensemble') {
+            // 集成引擎: 4算法融合
+            const { scores: fs } = ensembleScores(issues, 35, d => d.front);
+            const { scores: bs } = ensembleScores(issues, 12, d => d.back);
+            front = pickTopN(fs, 5);
+            back = pickTopN(bs, 2);
+        } else if (strat.engine === 'markov') {
+            // 马尔可夫链
+            const fs = markovScores(issues, 35, d => d.front);
+            const bs = markovScores(issues, 12, d => d.back);
+            front = generateWithConstraints(fs, 5, 35, constraints);
+            back = pickTopN(bs, 2);
         } else {
             const fScores = scoreNumbersV2(frontMW.freq, frontMW.miss, 35, strat, patterns);
-            // Bug#6 fix: no tailBoost for back zone (tail stats are from front numbers 1-35)
+            // Bug#6 fix: no tailBoost for back zone
             const bScores = scoreNumbersV2(backMW.freq, backMW.miss, 12,
                 { ...strat, wZone: 0, wTail: 0 },
                 { zoneTarget: null, tailBoost: null });

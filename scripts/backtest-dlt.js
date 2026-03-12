@@ -17,6 +17,8 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
 
+const { ensembleScores, markovScores, pickTopN } = require('./ensemble-engine');
+
 function loadJSON(file) {
     if (!fs.existsSync(file)) return null;
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
@@ -169,14 +171,16 @@ function calcHitLevel(fHits, bHits) {
     return '未中奖';
 }
 
-// ========== 策略定义 (与 analyze.js 一致) ==========
+// ========== 策略定义 V4 (集成引擎) ==========
 
 const STRATEGIES = [
-    { id: 'hot',      name: '🔥 热号趋势', wFreq: 0.55, wMiss: 0.05, wZone: 0.20, wTail: 0.10, wRand: 0.10 },
-    { id: 'cold',     name: '❄️ 冷号回补', wFreq: 0.10, wMiss: 0.55, wZone: 0.15, wTail: 0.10, wRand: 0.10 },
-    { id: 'balanced', name: '⚖️ 均衡推荐', wFreq: 0.30, wMiss: 0.25, wZone: 0.20, wTail: 0.15, wRand: 0.10 },
-    { id: 'pattern',  name: '📊 模式匹配', wFreq: 0.20, wMiss: 0.15, wZone: 0.30, wTail: 0.25, wRand: 0.10 },
+    { id: 'ensemble', name: '🧠 集成·四算法', engine: 'ensemble' },
     { id: 'adaptive', name: '🎯 自适应',   wFreq: 0.40, wMiss: 0.15, wZone: 0.15, wTail: 0.10, wRand: 0.20 },
+    { id: 'markov',   name: '🔗 马尔可夫链', engine: 'markov' },
+    { id: 'pattern',  name: '📊 模式匹配', wFreq: 0.20, wMiss: 0.15, wZone: 0.30, wTail: 0.25, wRand: 0.10 },
+    { id: 'hot',      name: '🔥 热号趋势', wFreq: 0.55, wMiss: 0.05, wZone: 0.20, wTail: 0.10, wRand: 0.10 },
+    { id: 'balanced', name: '⚖️ 均衡推荐', wFreq: 0.30, wMiss: 0.25, wZone: 0.20, wTail: 0.15, wRand: 0.10 },
+    { id: 'cold',     name: '❄️ 冷号实验', wFreq: 0.20, wMiss: 0.40, wZone: 0.15, wTail: 0.10, wRand: 0.15 },
     { id: 'random',   name: '🎲 随机基准', wFreq: 0, wMiss: 0, wZone: 0, wTail: 0, wRand: 1 }
 ];
 
@@ -270,6 +274,16 @@ function main() {
                 if (strat.id === 'random') {
                     front = randomPick(35, 5);
                     back = randomPick(12, 2);
+                } else if (strat.engine === 'ensemble') {
+                    const { scores: fs } = ensembleScores(trainData, 35, d => d.front);
+                    const { scores: bs } = ensembleScores(trainData, 12, d => d.back);
+                    front = pickTopN(fs, 5);
+                    back = pickTopN(bs, 2);
+                } else if (strat.engine === 'markov') {
+                    const fs = markovScores(trainData, 35, d => d.front);
+                    const bs = markovScores(trainData, 12, d => d.back);
+                    front = generateWithConstraints(fs, 5, 35, constraints);
+                    back = pickTopN(bs, 2);
                 } else {
                     const w = st.weights;
                     const fScores = scoreNumbersV2(frontMW.freq, frontMW.miss, 35, w, patterns);

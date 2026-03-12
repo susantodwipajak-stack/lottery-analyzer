@@ -1,9 +1,9 @@
 {
-  "lastUpdate": "2026-03-12T21:54:34.499Z",
+  "lastUpdate": "2026-03-12T22:12:35.068Z",
   "latestIssue": "26025",
   "nextIssue": "26026",
   "analysisRange": 102,
-  "modelVersion": 10,
+  "modelVersion": 11,
   "summary": {
     "hotFront": [
       9,
@@ -204,33 +204,63 @@
     "targetIssue": "26026",
     "predictions": [
       {
+        "strategyId": "ensemble",
+        "label": "🧠 集成·四算法",
+        "front": [
+          6,
+          7,
+          9,
+          13,
+          22
+        ],
+        "back": [
+          2,
+          5
+        ]
+      },
+      {
         "strategyId": "adaptive",
         "label": "🎯 首推·自适应",
         "front": [
           2,
+          4,
           5,
-          8,
           9,
-          10
+          26
         ],
         "back": [
-          1,
-          5
+          5,
+          12
+        ]
+      },
+      {
+        "strategyId": "markov",
+        "label": "🔗 马尔可夫链",
+        "front": [
+          2,
+          4,
+          8,
+          9,
+          18
+        ],
+        "back": [
+          6,
+          12
         ]
       },
       {
         "strategyId": "pattern",
         "label": "📊 模式匹配",
         "front": [
-          2,
           3,
-          4,
-          5,
-          8
+          9,
+          13,
+          14,
+          32
         ],
         "back": [
-          1,
-          5
+          5,
+          6
         ]
       },
       {
@@ -253,9 +283,9 @@
         "label": "⚖️ 均衡推荐",
         "front": [
           5,
-          7,
+          8,
           9,
-          12,
+          10,
           32
         ],
         "back": [
@@ -267,11 +297,11 @@
         "strategyId": "cold",
         "label": "❄️ 冷号实验",
         "front": [
+          5,
           6,
           7,
-          12,
-          32,
-          33
+          20,
+          32
         ],
         "back": [
           2,
@@ -282,15 +312,15 @@
         "strategyId": "random",
         "label": "🎲 随机基准",
         "front": [
-          4,
+          3,
           5,
-          6,
-          7,
-          26
+          12,
+          13,
+          25
         ],
         "back": [
-          2,
-          3
+          6,
+          11
         ]
       }
     ]
@@ -679,6 +709,11 @@
   },
   "evolvedStrategies": [
     {
+      "id": "ensemble",
+      "name": "🧠 集成·四算法",
+      "engine": "ensemble"
+    },
+    {
       "id": "adaptive",
       "name": "🎯 首推·自适应",
       "wFreq": 0.4,
@@ -686,6 +721,11 @@
       "wZone": 0.15,
       "wTail": 0.1,
       "wRand": 0.2
+    },
+    {
+      "id": "markov",
+      "name": "🔗 马尔可夫链",
+      "engine": "markov"
     },
     {
       "id": "pattern",

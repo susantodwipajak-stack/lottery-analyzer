@@ -1,5 +1,5 @@
 {
-  "runDate": "2026-03-12T21:54:17.610Z",
+  "runDate": "2026-03-12T22:23:18.893Z",
   "totalPeriods": 102,
   "testPeriods": 82,
   "minTrainWindow": 20,
@@ -10,92 +10,125 @@
   },
   "results": [
     {
-      "id": "hot",
-      "name": "🔥 热号趋势",
-      "avgF": 0.74,
-      "avgB": 0.43,
-      "avgT": 1.17,
-      "f3pct": 3.7,
-      "prizePct": 7.3,
-      "vsRandom": 1.057
+      "id": "ensemble",
+      "name": "🧠 集成·四算法",
+      "avgF": 0.84,
+      "avgB": 0.35,
+      "avgT": 1.2,
+      "f3pct": 4.9,
+      "prizePct": 13.4,
+      "vsRandom": 1.167
+    },
+    {
+      "id": "markov",
+      "name": "🔗 马尔可夫链",
+      "avgF": 0.79,
+      "avgB": 0.21,
+      "avgT": 1,
+      "f3pct": 2.4,
+      "prizePct": 6.1,
+      "vsRandom": 1.097
     },
     {
       "id": "balanced",
       "name": "⚖️ 均衡推荐",
-      "avgF": 0.74,
-      "avgB": 0.28,
-      "avgT": 1.02,
-      "f3pct": 2.4,
-      "prizePct": 9.8,
-      "vsRandom": 1.057
-    },
-    {
-      "id": "adaptive",
-      "name": "🎯 自适应",
-      "avgF": 0.74,
-      "avgB": 0.41,
-      "avgT": 1.16,
-      "f3pct": 3.7,
-      "prizePct": 8.5,
-      "vsRandom": 1.057
-    },
-    {
-      "id": "pattern",
-      "name": "📊 模式匹配",
-      "avgF": 0.71,
-      "avgB": 0.34,
-      "avgT": 1.05,
-      "f3pct": 2.4,
+      "avgF": 0.76,
+      "avgB": 0.33,
+      "avgT": 1.09,
+      "f3pct": 1.2,
       "prizePct": 7.3,
-      "vsRandom": 1.014
+      "vsRandom": 1.056
     },
     {
       "id": "random",
       "name": "🎲 随机基准",
-      "avgF": 0.7,
-      "avgB": 0.33,
-      "avgT": 1.04,
+      "avgF": 0.72,
+      "avgB": 0.36,
+      "avgT": 1.09,
       "f3pct": 1.2,
-      "prizePct": 7.1,
+      "prizePct": 7.8,
       "vsRandom": 1
     },
     {
       "id": "cold",
-      "name": "❄️ 冷号回补",
-      "avgF": 0.66,
+      "name": "❄️ 冷号实验",
+      "avgF": 0.71,
       "avgB": 0.33,
-      "avgT": 0.99,
+      "avgT": 1.04,
       "f3pct": 1.2,
-      "prizePct": 9.8,
-      "vsRandom": 0.943
+      "prizePct": 6.1,
+      "vsRandom": 0.986
+    },
+    {
+      "id": "hot",
+      "name": "🔥 热号趋势",
+      "avgF": 0.7,
+      "avgB": 0.38,
+      "avgT": 1.07,
+      "f3pct": 4.9,
+      "prizePct": 7.3,
+      "vsRandom": 0.972
+    },
+    {
+      "id": "pattern",
+      "name": "📊 模式匹配",
+      "avgF": 0.67,
+      "avgB": 0.28,
+      "avgT": 0.95,
+      "f3pct": 1.2,
+      "prizePct": 4.9,
+      "vsRandom": 0.931
+    },
+    {
+      "id": "adaptive",
+      "name": "🎯 自适应",
+      "avgF": 0.66,
+      "avgB": 0.4,
+      "avgT": 1.06,
+      "f3pct": 0,
+      "prizePct": 4.9,
+      "vsRandom": 0.917
     }
   ],
   "levelDistribution": {
+    "ensemble": {
+      "未中奖": 71,
+      "九等奖": 8,
+      "八等奖": 2,
+      "七等奖": 1
+    },
+    "adaptive": {
+      "未中奖": 78,
+      "九等奖": 3,
+      "八等奖": 1
+    },
+    "markov": {
+      "未中奖": 77,
+      "九等奖": 4,
+      "八等奖": 1
+    },
+    "pattern": {
+      "未中奖": 78,
+      "八等奖": 1,
+      "九等奖": 3
+    },
     "hot": {
       "未中奖": 76,
       "九等奖": 5,
       "八等奖": 1
     },
-    "cold": {
-      "未中奖": 74,
-      "九等奖": 8
-    },
     "balanced": {
-      "未中奖": 74,
-      "九等奖": 8
-    },
-    "pattern": {
       "未中奖": 76,
-      "九等奖": 6
+      "九等奖": 5,
+      "八等奖": 1
     },
-    "adaptive": {
-      "未中奖": 75,
-      "八等奖": 1,
-      "九等奖": 6
+    "cold": {
+      "未中奖": 77,
+      "九等奖": 5
     },
     "random": {
-      "未中奖": 381,
-      "九等奖": 26,
+      "未中奖": 378,
+      "九等奖": 29,
       "八等奖": 3
     }
   }
