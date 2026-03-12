@@ -1,5 +1,5 @@
 {
-  "runDate": "2026-03-12T21:37:31.467Z",
+  "runDate": "2026-03-12T21:54:17.610Z",
   "totalPeriods": 102,
   "testPeriods": 82,
   "minTrainWindow": 20,
@@ -10,95 +10,93 @@
   },
   "results": [
     {
-      "id": "adaptive",
-      "name": "🎯 自适应",
-      "avgF": 0.83,
-      "avgB": 0.33,
-      "avgT": 1.16,
-      "f3pct": 4.9,
-      "prizePct": 9.8,
-      "vsRandom": 1.258
-    },
-    {
-      "id": "pattern",
-      "name": "📊 模式匹配",
-      "avgF": 0.82,
-      "avgB": 0.33,
-      "avgT": 1.15,
-      "f3pct": 2.4,
-      "prizePct": 9.8,
-      "vsRandom": 1.242
-    },
-    {
       "id": "hot",
       "name": "🔥 热号趋势",
-      "avgF": 0.67,
-      "avgB": 0.35,
-      "avgT": 1.02,
-      "f3pct": 4.9,
-      "prizePct": 8.5,
-      "vsRandom": 1.015
-    },
-    {
-      "id": "random",
-      "name": "🎲 随机基准",
-      "avgF": 0.66,
-      "avgB": 0.34,
-      "avgT": 1,
-      "f3pct": 0.7,
-      "prizePct": 6.6,
-      "vsRandom": 1
+      "avgF": 0.74,
+      "avgB": 0.43,
+      "avgT": 1.17,
+      "f3pct": 3.7,
+      "prizePct": 7.3,
+      "vsRandom": 1.057
     },
     {
       "id": "balanced",
       "name": "⚖️ 均衡推荐",
-      "avgF": 0.65,
-      "avgB": 0.3,
-      "avgT": 0.95,
+      "avgF": 0.74,
+      "avgB": 0.28,
+      "avgT": 1.02,
+      "f3pct": 2.4,
+      "prizePct": 9.8,
+      "vsRandom": 1.057
+    },
+    {
+      "id": "adaptive",
+      "name": "🎯 自适应",
+      "avgF": 0.74,
+      "avgB": 0.41,
+      "avgT": 1.16,
       "f3pct": 3.7,
-      "prizePct": 4.9,
-      "vsRandom": 0.985
+      "prizePct": 8.5,
+      "vsRandom": 1.057
+    },
+    {
+      "id": "pattern",
+      "name": "📊 模式匹配",
+      "avgF": 0.71,
+      "avgB": 0.34,
+      "avgT": 1.05,
+      "f3pct": 2.4,
+      "prizePct": 7.3,
+      "vsRandom": 1.014
+    },
+    {
+      "id": "random",
+      "name": "🎲 随机基准",
+      "avgF": 0.7,
+      "avgB": 0.33,
+      "avgT": 1.04,
+      "f3pct": 1.2,
+      "prizePct": 7.1,
+      "vsRandom": 1
     },
     {
       "id": "cold",
       "name": "❄️ 冷号回补",
-      "avgF": 0.6,
-      "avgB": 0.32,
-      "avgT": 0.91,
+      "avgF": 0.66,
+      "avgB": 0.33,
+      "avgT": 0.99,
       "f3pct": 1.2,
-      "prizePct": 6.1,
-      "vsRandom": 0.909
+      "prizePct": 9.8,
+      "vsRandom": 0.943
     }
   ],
   "levelDistribution": {
     "hot": {
-      "未中奖": 75,
-      "九等奖": 6,
+      "未中奖": 76,
+      "九等奖": 5,
       "八等奖": 1
     },
     "cold": {
-      "未中奖": 77,
-      "八等奖": 1,
-      "九等奖": 4
-    },
-    "balanced": {
-      "未中奖": 78,
-      "九等奖": 4
-    },
-    "pattern": {
       "未中奖": 74,
       "九等奖": 8
     },
-    "adaptive": {
+    "balanced": {
       "未中奖": 74,
-      "九等奖": 6,
-      "八等奖": 2
+      "九等奖": 8
+    },
+    "pattern": {
+      "未中奖": 76,
+      "九等奖": 6
+    },
+    "adaptive": {
+      "未中奖": 75,
+      "八等奖": 1,
+      "九等奖": 6
     },
     "random": {
-      "未中奖": 383,
-      "九等奖": 25,
-      "八等奖": 1,
-      "七等奖": 1
+      "未中奖": 381,
+      "九等奖": 26,
+      "八等奖": 3
     }
   }
 }

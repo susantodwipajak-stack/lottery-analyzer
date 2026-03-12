@@ -563,9 +563,9 @@ function generateRecommendations() {
   const container = $('#recommendation-sets');
   if (!container || DLT_HISTORY.length < 5) { if (container) container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">数据不足（需要至少 5 期），请先录入更多数据。</p>'; return; }
   const strategies = [
-    { name: '🔥 热号趋势', desc: '偏重近期高频号码', wFreq: 0.5, wMiss: 0.1, wRecent: 0.4 },
-    { name: '⚖️ 均衡推荐', desc: '频率+遗漏+趋势综合', wFreq: 0.3, wMiss: 0.35, wRecent: 0.35 },
-    { name: '❄️ 冷号回补', desc: '偏重长期遗漏号码', wFreq: 0.1, wMiss: 0.6, wRecent: 0.3 }
+    { name: '🎯 首推·自适应', desc: '回测排名#1 前区+26%', wFreq: 0.4, wMiss: 0.15, wRecent: 0.25 },
+    { name: '📊 模式匹配', desc: '回测排名#2 区间+尾数', wFreq: 0.2, wMiss: 0.15, wRecent: 0.25 },
+    { name: '🔥 热号趋势', desc: '偏重近期高频号码', wFreq: 0.5, wMiss: 0.1, wRecent: 0.4 }
   ];
   const makeBall = (n, bg) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:${bg};color:#fff;font-weight:700;font-size:0.85rem;margin:0 2px;">${String(n).padStart(2, '0')}</span>`;
   let html = '';
@@ -590,12 +590,12 @@ function savePredictions(arr) { localStorage.setItem(PRED_KEY, JSON.stringify(ar
 function getStrategyPerf() { try { return JSON.parse(localStorage.getItem(PERF_KEY)) || {}; } catch { return {}; } }
 function saveStrategyPerf(p) { localStorage.setItem(PERF_KEY, JSON.stringify(p)); }
 
-// Bug#3 fix: align with backend analyze.js 5-dimension strategy definitions
+// V3 (回测优化): 按82期回测排名 adaptive>pattern>hot>balanced>cold
 const PRED_STRATEGIES = [
+  { id: 'adaptive', name: '🎯 首推·自适应', wFreq: 0.40, wMiss: 0.15, wRecent: 0.25, wZone: 0.10, wTail: 0.10 },
+  { id: 'pattern', name: '📊 模式匹配', wFreq: 0.20, wMiss: 0.15, wRecent: 0.25, wZone: 0.15, wTail: 0.25 },
   { id: 'hot', name: '🔥 热号趋势', wFreq: 0.55, wMiss: 0.05, wRecent: 0.30, wZone: 0.05, wTail: 0.05 },
-  { id: 'cold', name: '❄️ 冷号回补', wFreq: 0.10, wMiss: 0.55, wRecent: 0.20, wZone: 0.10, wTail: 0.05 },
   { id: 'balanced', name: '⚖️ 均衡推荐', wFreq: 0.30, wMiss: 0.25, wRecent: 0.25, wZone: 0.10, wTail: 0.10 },
-  { id: 'adaptive', name: '🎯 自适应', wFreq: 0.33, wMiss: 0.20, wRecent: 0.27, wZone: 0.10, wTail: 0.10 },
   { id: 'random', name: '🎲 随机基准', wFreq: 0, wMiss: 0, wRecent: 0 }
 ];
 

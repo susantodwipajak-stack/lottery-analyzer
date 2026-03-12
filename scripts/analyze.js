@@ -247,15 +247,16 @@ function randomPick(max, count) {
     return result.sort((a, b) => a - b);
 }
 
-// ========== 策略定义 V2 ==========
+// ========== 策略定义 V3 (回测优化) ==========
+// 排序: 按82期回测前区命中率排名
 
 const DEFAULT_STRATEGIES = [
-    { id: 'hot',      name: '🔥 热号趋势', wFreq: 0.55, wMiss: 0.05, wZone: 0.20, wTail: 0.10, wRand: 0.10 },
-    { id: 'cold',     name: '❄️ 冷号回补', wFreq: 0.10, wMiss: 0.55, wZone: 0.15, wTail: 0.10, wRand: 0.10 },
-    { id: 'balanced', name: '⚖️ 均衡推荐', wFreq: 0.30, wMiss: 0.25, wZone: 0.20, wTail: 0.15, wRand: 0.10 },
-    { id: 'pattern',  name: '📊 模式匹配', wFreq: 0.20, wMiss: 0.15, wZone: 0.30, wTail: 0.25, wRand: 0.10 },
-    { id: 'adaptive', name: '🎯 自适应',   wFreq: 0.40, wMiss: 0.15, wZone: 0.15, wTail: 0.10, wRand: 0.20 },
-    { id: 'random',   name: '🎲 随机基准', wFreq: 0, wMiss: 0, wZone: 0, wTail: 0, wRand: 1 }
+    { id: 'adaptive', name: '🎯 首推·自适应', wFreq: 0.40, wMiss: 0.15, wZone: 0.15, wTail: 0.10, wRand: 0.20 },
+    { id: 'pattern',  name: '📊 模式匹配',   wFreq: 0.20, wMiss: 0.15, wZone: 0.30, wTail: 0.25, wRand: 0.10 },
+    { id: 'hot',      name: '🔥 热号趋势',   wFreq: 0.55, wMiss: 0.05, wZone: 0.20, wTail: 0.10, wRand: 0.10 },
+    { id: 'balanced', name: '⚖️ 均衡推荐',   wFreq: 0.30, wMiss: 0.25, wZone: 0.20, wTail: 0.15, wRand: 0.10 },
+    { id: 'cold',     name: '❄️ 冷号实验',   wFreq: 0.20, wMiss: 0.40, wZone: 0.15, wTail: 0.10, wRand: 0.15 },
+    { id: 'random',   name: '🎲 随机基准',   wFreq: 0, wMiss: 0, wZone: 0, wTail: 0, wRand: 1 }
 ];
 
 // ========== 奖级计算 ==========

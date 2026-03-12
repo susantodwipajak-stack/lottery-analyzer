@@ -1,9 +1,9 @@
 {
-  "lastUpdate": "2026-03-12T16:44:30.818Z",
+  "lastUpdate": "2026-03-12T21:54:34.499Z",
   "latestIssue": "26025",
   "nextIssue": "26026",
   "analysisRange": 102,
-  "modelVersion": 9,
+  "modelVersion": 10,
   "summary": {
     "hotFront": [
       9,
@@ -204,6 +204,36 @@
     "targetIssue": "26026",
     "predictions": [
       {
+        "strategyId": "adaptive",
+        "label": "🎯 首推·自适应",
+        "front": [
+          2,
+          5,
+          8,
+          9,
+          10
+        ],
+        "back": [
+          1,
+          5
+        ]
+      },
+      {
+        "strategyId": "pattern",
+        "label": "📊 模式匹配",
+        "front": [
+          2,
+          3,
+          4,
+          5,
+          8
+        ],
+        "back": [
+          1,
+          5
+        ]
+      },
+      {
         "strategyId": "hot",
         "label": "🔥 热号趋势",
         "front": [
@@ -214,17 +244,32 @@
           26
         ],
         "back": [
+          1,
+          5
+        ]
+      },
+      {
+        "strategyId": "balanced",
+        "label": "⚖️ 均衡推荐",
+        "front": [
           5,
-          12
+          7,
+          9,
+          12,
+          32
+        ],
+        "back": [
+          2,
+          5
         ]
       },
       {
         "strategyId": "cold",
-        "label": "❄️ 冷号回补",
+        "label": "❄️ 冷号实验",
         "front": [
           6,
           7,
-          20,
+          12,
           32,
           33
         ],
@@ -234,63 +279,18 @@
         ]
       },
       {
-        "strategyId": "balanced",
-        "label": "⚖️ 均衡推荐",
+        "strategyId": "random",
+        "label": "🎲 随机基准",
         "front": [
+          4,
           5,
-          9,
-          10,
-          12,
+          6,
+          7,
           26
         ],
         "back": [
           2,
-          5
-        ]
-      },
-      {
-        "strategyId": "pattern",
-        "label": "📊 模式匹配",
-        "front": [
-          5,
-          10,
-          12,
-          13,
-          23
-        ],
-        "back": [
-          1,
-          11
-        ]
-      },
-      {
-        "strategyId": "adaptive",
-        "label": "🎯 自适应",
-        "front": [
-          5,
-          9,
-          12,
-          26,
-          28
-        ],
-        "back": [
-          2,
-          5
-        ]
-      },
-      {
-        "strategyId": "random",
-        "label": "🎲 随机基准",
-        "front": [
-          5,
-          7,
-          24,
-          29,
-          33
-        ],
-        "back": [
-          4,
-          11
+          3
         ]
       }
     ]
@@ -679,20 +679,29 @@
   },
   "evolvedStrategies": [
     {
+      "id": "adaptive",
+      "name": "🎯 首推·自适应",
+      "wFreq": 0.4,
+      "wMiss": 0.15,
+      "wZone": 0.15,
+      "wTail": 0.1,
+      "wRand": 0.2
+    },
+    {
+      "id": "pattern",
+      "name": "📊 模式匹配",
+      "wFreq": 0.2,
+      "wMiss": 0.15,
+      "wZone": 0.3,
+      "wTail": 0.25,
+      "wRand": 0.1
+    },
+    {
       "id": "hot",
       "name": "🔥 热号趋势",
       "wFreq": 0.55,
       "wMiss": 0.05,
       "wZone": 0.2,
-      "wTail": 0.1,
-      "wRand": 0.1
-    },
-    {
-      "id": "cold",
-      "name": "❄️ 冷号回补",
-      "wFreq": 0.1,
-      "wMiss": 0.55,
-      "wZone": 0.15,
       "wTail": 0.1,
       "wRand": 0.1
     },
@@ -706,22 +715,13 @@
       "wRand": 0.1
     },
     {
-      "id": "pattern",
-      "name": "📊 模式匹配",
+      "id": "cold",
+      "name": "❄️ 冷号实验",
       "wFreq": 0.2,
-      "wMiss": 0.15,
-      "wZone": 0.3,
-      "wTail": 0.25,
-      "wRand": 0.1
-    },
-    {
-      "id": "adaptive",
-      "name": "🎯 自适应",
-      "wFreq": 0.4,
-      "wMiss": 0.15,
+      "wMiss": 0.4,
       "wZone": 0.15,
       "wTail": 0.1,
-      "wRand": 0.2
+      "wRand": 0.15
     }
   ]
 }
