@@ -144,22 +144,39 @@ function generateSFPicks(matches, params) {
         // Run all 3 strategies
         const stratResults = STRATEGIES.map(strat => {
             const w = strat.weights;
+            // Compute raw implied probs (with margin) as the "market" baseline
+            const marketProbs = ipRaw.map(p => p / margin);
             const raw = ['胜', '平', '负'].map((label, i) => {
+                // Kelly/EV: compare OUR model's prob vs the MARKET's implied prob
+                // This creates genuine edge when our model differs from market
                 const kelly = calcKelly(odds[i], probs[i]);
                 const ev = calcEV(odds[i], probs[i]);
-                return { label, odds: odds[i], prob: probs[i], kelly: Math.max(0, kelly), ev: Math.max(0, ev) };
+                // Also calculate edge: how much our model diverges from market
+                const edge = probs[i] - marketProbs[i]; // positive = we think more likely than market
+                return { label, odds: odds[i], prob: probs[i], kelly: Math.max(0, kelly), ev: Math.max(0, ev), edge };
             });
 
-            // Bug#1 fix: normalize each factor to [0,1] before combining
+            // Normalize each factor to [0,1] before combining
+            // Use edge as the value signal (replaces dead kelly/ev when they're all 0)
             const kMax = Math.max(0.001, ...raw.map(r => r.kelly));
             const eMax = Math.max(0.001, ...raw.map(r => r.ev));
             const pMax = Math.max(0.001, ...raw.map(r => r.prob));
-            const results = raw.map(r => ({
-                ...r,
-                score: w.kelly * (r.kelly / kMax)
-                     + w.ev * (r.ev / eMax)
-                     + w.implied * (r.prob / pMax)
-            }));
+            const edgeMax = Math.max(0.001, ...raw.map(r => Math.abs(r.edge)));
+
+            const results = raw.map(r => {
+                const kellyNorm = r.kelly / kMax;
+                const evNorm = r.ev / eMax;
+                const probNorm = r.prob / pMax;
+                // When kelly/ev are all 0, use edge as value signal
+                const kellyOrEdge = kellyNorm > 0 ? kellyNorm : (r.edge > 0 ? r.edge / edgeMax : 0);
+                const evOrEdge = evNorm > 0 ? evNorm : (r.edge > 0 ? r.edge / edgeMax * 0.5 : 0);
+                return {
+                    ...r,
+                    score: w.kelly * kellyOrEdge
+                         + w.ev * evOrEdge
+                         + w.implied * probNorm
+                };
+            });
             results.sort((a, b) => b.score - a.score);
             return {
                 strategyId: strat.id,

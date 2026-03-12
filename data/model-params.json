@@ -1,47 +1,16 @@
 {
     "version": 1,
-    "weights": {
-        "kelly": 0.35,
-        "ev": 0.35,
-        "implied": 0.30
-    },
-    "momentum": {
-        "kelly": 0,
-        "ev": 0,
-        "implied": 0
-    },
+    "weights": { "kelly": 0.35, "ev": 0.35, "implied": 0.30 },
+    "momentum": { "kelly": 0, "ev": 0, "implied": 0 },
     "gameWeights": {
-        "sf": {
-            "homeAdv": 0.08,
-            "drawBias": 0.02,
-            "formWeight": 0.15
-        },
-        "r9": {
-            "homeAdv": 0.08,
-            "drawBias": 0.02,
-            "formWeight": 0.15
-        },
-        "bqc": {
-            "halfDrawBias": 0.12,
-            "consistency": 0.20
-        },
-        "jq": {
-            "avgGoals": 2.5,
-            "homeGoalAdv": 0.15
-        }
+        "sf": { "homeAdv": 0.08, "drawBias": 0.02, "formWeight": 0.15 },
+        "r9": { "homeAdv": 0.08, "drawBias": 0.02, "formWeight": 0.15 },
+        "bqc": { "halfDrawBias": 0.12, "consistency": 0.20 },
+        "jq": { "avgGoals": 2.5, "homeGoalAdv": 0.15 }
     },
     "leagueParams": {},
     "strategyAccuracy": {},
-    "accuracy": {
-        "total": 0,
-        "correct": 0,
-        "rate": 0,
-        "byGame": {
-            "sf": { "total": 0, "correct": 0 },
-            "bqc": { "total": 0, "correct": 0 },
-            "jq": { "total": 0, "correct": 0 }
-        }
-    },
+    "accuracy": { "total": 0, "correct": 0, "rate": 0, "byGame": { "sf": { "total": 0, "correct": 0 }, "bqc": { "total": 0, "correct": 0 }, "jq": { "total": 0, "correct": 0 } } },
     "history": [],
     "lastUpdate": ""
 }
