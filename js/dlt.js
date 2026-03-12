@@ -1,4 +1,4 @@
-﻿// =============================================
+// =============================================
 // SECTION 2: 大乐透深度分析
 // =============================================
 const DLT_DEFAULT_DATA = [
@@ -331,7 +331,7 @@ function pickFrontForStrategy(strat) {
     const pick = shuffled.slice(0, 5).sort((a, b) => a - b);
     const sum = pick.reduce((a, b) => a + b, 0);
     const odd = pick.filter(n => n % 2 === 1).length;
-    if (sum >= 65 && sum <= 125 && odd >= 2 && odd <= 3 && pick[4] - pick[0] >= 15) return pick;
+    if (sum >= 65 && sum <= 125 && odd >= 2 && odd <= 3 && pick[4] - pick[0] >= 12) return pick;
   }
   return scores.slice(0, 5).map(s => s.num).sort((a, b) => a - b);
 }
@@ -590,11 +590,12 @@ function savePredictions(arr) { localStorage.setItem(PRED_KEY, JSON.stringify(ar
 function getStrategyPerf() { try { return JSON.parse(localStorage.getItem(PERF_KEY)) || {}; } catch { return {}; } }
 function saveStrategyPerf(p) { localStorage.setItem(PERF_KEY, JSON.stringify(p)); }
 
+// Bug#3 fix: align with backend analyze.js 5-dimension strategy definitions
 const PRED_STRATEGIES = [
-  { id: 'hot', name: '🔥 热号趋势', wFreq: 0.5, wMiss: 0.1, wRecent: 0.4 },
-  { id: 'cold', name: '❄️ 冷号回补', wFreq: 0.1, wMiss: 0.6, wRecent: 0.3 },
-  { id: 'balanced', name: '⚖️ 均衡推荐', wFreq: 0.3, wMiss: 0.35, wRecent: 0.35 },
-  { id: 'adaptive', name: '🎯 自适应', wFreq: 0.33, wMiss: 0.33, wRecent: 0.34 },
+  { id: 'hot', name: '🔥 热号趋势', wFreq: 0.55, wMiss: 0.05, wRecent: 0.30, wZone: 0.05, wTail: 0.05 },
+  { id: 'cold', name: '❄️ 冷号回补', wFreq: 0.10, wMiss: 0.55, wRecent: 0.20, wZone: 0.10, wTail: 0.05 },
+  { id: 'balanced', name: '⚖️ 均衡推荐', wFreq: 0.30, wMiss: 0.25, wRecent: 0.25, wZone: 0.10, wTail: 0.10 },
+  { id: 'adaptive', name: '🎯 自适应', wFreq: 0.33, wMiss: 0.20, wRecent: 0.27, wZone: 0.10, wTail: 0.10 },
   { id: 'random', name: '🎲 随机基准', wFreq: 0, wMiss: 0, wRecent: 0 }
 ];
 
@@ -609,9 +610,12 @@ function getAdaptiveWeights() {
       if (score > bestScore) { bestScore = score; best = id; }
     }
   });
-  if (!best) return { wFreq: 0.33, wMiss: 0.33, wRecent: 0.34 };
+  if (!best) return { wFreq: 0.33, wMiss: 0.20, wRecent: 0.27, wZone: 0.10, wTail: 0.10 };
   const src = PRED_STRATEGIES.find(s => s.id === best);
-  return { wFreq: src.wFreq * 0.8 + 0.1, wMiss: src.wMiss * 0.8 + 0.1, wRecent: src.wRecent * 0.8 + 0.1 };
+  // Bug#8 fix: blend then normalize to sum=1
+  const raw = { wFreq: src.wFreq * 0.8 + 0.05, wMiss: src.wMiss * 0.8 + 0.05, wRecent: (src.wRecent || 0.25) * 0.8 + 0.05 };
+  const total = raw.wFreq + raw.wMiss + raw.wRecent;
+  return { wFreq: raw.wFreq / total, wMiss: raw.wMiss / total, wRecent: raw.wRecent / total };
 }
 
 function getNextIssue() {
@@ -629,7 +633,7 @@ function generatePredictionSet() {
   const targetIssue = getNextIssue();
   const preds = getPredictions();
   if (preds.find(p => p.targetIssue === targetIssue && !p.compared)) {
-    showToast(`第 ${targetIssue} 期预测已存在`, 'warning'); return;
+    showToast(`第 ${targetIssue} 期预测已存在`, 'warning'); setButtonLoading(btn, false); return;
   }
   const predictions = [];
   PRED_STRATEGIES.forEach(strat => {
@@ -706,7 +710,9 @@ function updateStrategyPerf(stratId, hit) {
   const perf = getStrategyPerf();
   if (!perf[stratId]) perf[stratId] = { total: 0, totalFrontHits: 0, totalBackHits: 0, bestFront: 0, bestBack: 0 };
   const p = perf[stratId];
-  p.total++; p.totalFrontHits += hit.frontHits; p.totalBackHits += hit.backHits;
+  // Bug#4 fix: decay old data before accumulating new
+  p.totalFrontHits *= 0.95; p.totalBackHits *= 0.95; p.total = p.total * 0.95 + 1;
+  p.totalFrontHits += hit.frontHits; p.totalBackHits += hit.backHits;
   if (hit.frontHits > p.bestFront || (hit.frontHits === p.bestFront && hit.backHits > p.bestBack)) { p.bestFront = hit.frontHits; p.bestBack = hit.backHits; }
   saveStrategyPerf(perf);
 }

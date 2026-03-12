@@ -162,8 +162,8 @@ function scoreNumbersV2(freq, miss, maxNum, weights, patterns) {
             score += (tailBoost[i % 10] || 0) * weights.wTail;
         }
 
-        // Small random factor
-        score += Math.random() * 0.05;
+        // Bug#10 fix: random factor scaled by wRand weight for strategy differentiation
+        score += Math.random() * (weights.wRand || 0.05);
         scores[i] = score;
     }
     return scores;
@@ -181,21 +181,28 @@ function pickByScore(scores, count) {
 
 function validateSum(front, sumStats) {
     const sum = front.reduce((a, b) => a + b, 0);
-    return sum >= sumStats.mean - 1.5 * sumStats.std && sum <= sumStats.mean + 1.5 * sumStats.std;
+    // Bug#9 fix: tighten from 1.5σ to 1.0σ for more meaningful constraint
+    return sum >= sumStats.mean - 1.0 * sumStats.std && sum <= sumStats.mean + 1.0 * sumStats.std;
 }
 
-function injectConsecutive(front, maxNum, consecRate) {
+function injectConsecutive(front, maxNum, consecRate, scores) {
     if (Math.random() > consecRate) return front; // No consecutive needed
     // Try to add a consecutive pair
     const sorted = [...front].sort((a, b) => a - b);
     for (let i = 0; i < sorted.length - 1; i++) {
         if (sorted[i + 1] - sorted[i] === 1) return front; // Already has one
     }
-    // Replace the lowest-scored number with a neighbor of the highest-scored
+    // Bug#5 fix: replace the LOWEST-scored number, not blindly the last
     const pivot = sorted[Math.floor(Math.random() * sorted.length)];
     const neighbor = pivot + 1 <= maxNum ? pivot + 1 : pivot - 1;
     if (neighbor >= 1 && neighbor <= maxNum && !front.includes(neighbor)) {
-        front[front.length - 1] = neighbor; // Replace last
+        // Find the lowest-scored number to replace
+        let worstIdx = 0, worstScore = Infinity;
+        front.forEach((n, idx) => {
+            const s = scores ? (scores[n] || 0) : 0;
+            if (s < worstScore && n !== pivot) { worstScore = s; worstIdx = idx; }
+        });
+        front[worstIdx] = neighbor;
         return front.sort((a, b) => a - b);
     }
     return front;
@@ -219,7 +226,7 @@ function generateWithConstraints(scores, count, maxNum, constraints, maxAttempts
         let pick = pickByScore(adjustedScores, count);
 
         if (constraints.consecRate > 0.4) {
-            pick = injectConsecutive(pick, maxNum, constraints.consecRate);
+            pick = injectConsecutive(pick, maxNum, constraints.consecRate, adjustedScores);
         }
         if (constraints.sumStats && !validateSum(pick, constraints.sumStats)) continue;
         if (constraints.topParities && !validateParity(pick, constraints.topParities)) continue;
@@ -296,12 +303,12 @@ function evolveStrategyWeights(strategies, perf, prevAnalysis) {
             s.wFreq = Math.max(0.05, s.wFreq - 0.01);
         }
 
-        // Apply EMA smoothing with previous weights
+        // Bug#2 fix: EMA smoothing — decay preserves HISTORY, (1-decay) adopts NEW value
         if (prev) {
-            s.wFreq = emaDecay * s.wFreq + (1 - emaDecay) * prev.wFreq;
-            s.wMiss = emaDecay * s.wMiss + (1 - emaDecay) * prev.wMiss;
-            s.wZone = emaDecay * s.wZone + (1 - emaDecay) * (prev.wZone || 0.15);
-            s.wTail = emaDecay * s.wTail + (1 - emaDecay) * (prev.wTail || 0.10);
+            s.wFreq = (1 - emaDecay) * s.wFreq + emaDecay * prev.wFreq;
+            s.wMiss = (1 - emaDecay) * s.wMiss + emaDecay * prev.wMiss;
+            s.wZone = (1 - emaDecay) * s.wZone + emaDecay * (prev.wZone || 0.15);
+            s.wTail = (1 - emaDecay) * s.wTail + emaDecay * (prev.wTail || 0.10);
         }
 
         // Normalize
@@ -361,10 +368,18 @@ function main() {
         .sort((a, b) => b[1] - a[1]).slice(0, 5);
     console.log(`  📊 区间高频组合: ${topZoneCombos.map(([k, v]) => `${k}(${v}次)`).join(', ')}`);
 
-    // Compute zone targets (which zone is "due")
-    const targetZone = topZoneCombos[0][0].split(':').map(Number);
+    // Bug#1 fix: use multi-window weighted zone target instead of all-time most frequent
+    const recentZones = calcZoneDistribution(issues.slice(0, 10), d => d.front);
+    const recentTop = Object.entries(recentZones.zoneCombos).sort((a, b) => b[1] - a[1]);
+    const recentCombo = recentTop.length > 0 ? recentTop[0][0] : topZoneCombos[0][0];
+    const globalCombo = topZoneCombos[0][0];
+    // Blend: 60% recent(10期) + 40% global
+    const rz = recentCombo.split(':').map(Number);
+    const gz = globalCombo.split(':').map(Number);
     const zoneTarget = [
-        targetZone[0] / 5, targetZone[1] / 5, targetZone[2] / 5
+        (rz[0] * 0.6 + gz[0] * 0.4) / 5,
+        (rz[1] * 0.6 + gz[1] * 0.4) / 5,
+        (rz[2] * 0.6 + gz[2] * 0.4) / 5
     ];
 
     // 奇偶比
@@ -432,9 +447,10 @@ function main() {
             back = randomPick(12, 2);
         } else {
             const fScores = scoreNumbersV2(frontMW.freq, frontMW.miss, 35, strat, patterns);
+            // Bug#6 fix: no tailBoost for back zone (tail stats are from front numbers 1-35)
             const bScores = scoreNumbersV2(backMW.freq, backMW.miss, 12,
-                { ...strat, wZone: 0, wTail: strat.wTail }, // no zones for back
-                { zoneTarget: null, tailBoost });
+                { ...strat, wZone: 0, wTail: 0 },
+                { zoneTarget: null, tailBoost: null });
             front = generateWithConstraints(fScores, 5, 35, constraints);
             back = pickByScore(bScores, 2);
         }
@@ -463,8 +479,13 @@ function main() {
             const id = p.strategyId;
             if (!strategyPerf[id]) strategyPerf[id] = { total: 0, totalFrontHits: 0, totalBackHits: 0, bestFront: 0, bestBack: 0 };
             const sp = strategyPerf[id];
-            sp.total++; sp.totalFrontHits += record.hits[i].frontHits; sp.totalBackHits += record.hits[i].backHits;
-            if (record.hits[i].frontHits > sp.bestFront) { sp.bestFront = record.hits[i].frontHits; sp.bestBack = record.hits[i].backHits; }
+            // Bug#4 fix: decay old data before adding new
+            sp.totalFrontHits *= 0.95; sp.totalBackHits *= 0.95; sp.total = sp.total * 0.95 + 1;
+            sp.totalFrontHits += record.hits[i].frontHits; sp.totalBackHits += record.hits[i].backHits;
+            // Bug#7 fix: also update best when frontHits equal but backHits higher
+            if (record.hits[i].frontHits > sp.bestFront || (record.hits[i].frontHits === sp.bestFront && record.hits[i].backHits > sp.bestBack)) {
+                sp.bestFront = record.hits[i].frontHits; sp.bestBack = record.hits[i].backHits;
+            }
         });
         comparedCount++;
     });
