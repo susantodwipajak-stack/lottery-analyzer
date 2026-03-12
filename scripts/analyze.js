@@ -529,6 +529,15 @@ function main() {
     const frontMiss = calcMissing(issues, 35, d => d.front);
     const backMiss = calcMissing(issues, 12, d => d.back);
 
+    // ===== 5a. 缩水+轮转覆盖 =====
+    let smartPickResult = null;
+    try {
+        const { smartPick } = require('./smart-pick');
+        smartPickResult = smartPick(issues, 'both');
+    } catch (e) {
+        console.log(`\n⚠️ 智能缩水跳过: ${e.message}`);
+    }
+
     const output = {
         lastUpdate: new Date().toISOString(),
         latestIssue: issues[0].issue,
@@ -541,7 +550,6 @@ function main() {
             frontMissing: frontMiss,
             backFrequency: backFreq,
             backMissing: backMiss,
-            // New V2 dimensions
             zoneDistribution: zoneData,
             parityRatio: parityData,
             consecutiveRate: +(consecData.rate * 100).toFixed(1),
@@ -550,6 +558,7 @@ function main() {
             tailDigits: tailData
         },
         currentPrediction: { targetIssue: nextIssue, predictions },
+        smartPick: smartPickResult,
         predictionRecords,
         strategyPerformance: strategyPerf,
         evolvedStrategies: strategies.filter(s => s.id !== 'random')
