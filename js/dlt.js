@@ -870,6 +870,107 @@ async function loadAutoAnalysis() {
       renderCurrentPredFromStorage();
       console.log(`🤖 导入 ${imported} 期机器人预测`);
     }
+
+    // Render smart-pick if available
+    if (data.smartPick) {
+      renderSmartPick(data.smartPick);
+    }
   } catch { /* data/analysis.json not available (local dev) */ }
 }
 
+// ---- Smart Pick Rendering ----
+
+function renderSmartPick(sp) {
+  const card = document.getElementById('smart-pick-card');
+  if (!card || !sp) return;
+  card.style.display = '';
+
+  // Calculate probability boost
+  const C = (n, k) => { let r = 1; for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1); return r; };
+  const selPicks = sp.select || [];
+  const covPicks = sp.coverage || [];
+
+  // Find eliminated numbers (35 front - candidates)
+  const allFrontNums = new Set();
+  [...selPicks, ...covPicks].forEach(p => p.front.forEach(n => allFrontNums.add(n)));
+  const eliminated = [];
+  for (let n = 1; n <= 35; n++) {
+    if (allFrontNums.size > 0 && !allFrontNums.has(n) && allFrontNums.size < 35) {
+      eliminated.push(n);
+    }
+  }
+
+  // Probability boost
+  const candidateCount = 35 - eliminated.length;
+  const backCandidates = 12 - 3; // typically eliminates 3 back
+  const origCombs = C(35, 5) * C(12, 2);
+  const redCombs = C(candidateCount, 5) * C(backCandidates, 2);
+  const boost = redCombs > 0 ? (origCombs / redCombs).toFixed(1) : '?';
+
+  const boostEl = document.getElementById('sp-probability-boost');
+  if (boostEl) boostEl.textContent = boost + '×';
+
+  // Eliminated numbers as gray balls
+  const elimEl = document.getElementById('sp-eliminated');
+  if (elimEl && eliminated.length > 0) {
+    elimEl.innerHTML = eliminated.map(n =>
+      `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:rgba(100,100,100,0.3);color:var(--text-muted);font-size:0.7rem;font-weight:600;text-decoration:line-through;">${String(n).padStart(2, '0')}</span>`
+    ).join('');
+  }
+
+  // Constraints
+  const constrEl = document.getElementById('sp-constraints');
+  if (constrEl) {
+    constrEl.innerHTML = `📏 AC≥4 · 和值57-109 · 奇数1-4个 · 跨度≥12 · 三区不空`;
+  }
+
+  // Select mode
+  const selSumEl = document.getElementById('sp-select-summary');
+  const selContainer = document.getElementById('sp-select-picks');
+  if (selSumEl) selSumEl.textContent = `${selPicks.length} 注 · ¥${selPicks.length * 2}`;
+  if (selContainer) {
+    selContainer.innerHTML = renderPickList(selPicks, 'select');
+  }
+
+  // Coverage mode
+  const covSumEl = document.getElementById('sp-coverage-summary');
+  const covContainer = document.getElementById('sp-coverage-picks');
+  if (covSumEl) covSumEl.textContent = `${covPicks.length} 注 · ¥${covPicks.length * 2}`;
+  if (covContainer) {
+    covContainer.innerHTML = renderPickList(covPicks, 'coverage');
+  }
+
+  // Toggle listeners
+  const togSel = document.getElementById('toggle-select-mode');
+  const togCov = document.getElementById('toggle-coverage-mode');
+  if (togSel) togSel.onclick = () => {
+    selContainer.style.display = selContainer.style.display === 'none' ? '' : 'none';
+  };
+  if (togCov) togCov.onclick = () => {
+    covContainer.style.display = covContainer.style.display === 'none' ? '' : 'none';
+  };
+}
+
+function renderPickList(picks, mode) {
+  if (!picks || picks.length === 0) return '<p style="font-size:0.75rem;color:var(--text-muted);">暂无数据</p>';
+  const frontBg = mode === 'select'
+    ? 'linear-gradient(135deg,#f39c12,#e67e22)'
+    : 'linear-gradient(135deg,#00bcd4,#0097a7)';
+  const backBg = 'linear-gradient(135deg,#2980b9,#1a5276)';
+
+  return picks.map((p, i) => {
+    const fBalls = p.front.map(n =>
+      `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:${frontBg};color:#fff;font-weight:700;font-size:0.75rem;margin:1px;">${String(n).padStart(2, '0')}</span>`
+    ).join('');
+    const bBalls = p.back.map(n =>
+      `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:${backBg};color:#fff;font-weight:700;font-size:0.75rem;margin:1px;">${String(n).padStart(2, '0')}</span>`
+    ).join('');
+
+    return `<div style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.4rem;background:rgba(10,14,26,0.3);border:1px solid rgba(255,255,255,0.04);border-radius:var(--radius-sm);margin-bottom:3px;flex-wrap:wrap;">
+      <span style="font-size:0.68rem;color:var(--text-muted);min-width:28px;font-weight:600;">#${i + 1}</span>
+      ${fBalls}
+      <span style="color:var(--text-muted);margin:0 2px;font-size:0.72rem;">+</span>
+      ${bBalls}
+    </div>`;
+  }).join('');
+}

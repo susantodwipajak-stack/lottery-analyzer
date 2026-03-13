@@ -314,6 +314,52 @@
       </div>
     </div>
 
+    <!-- 🎯 Smart Pick: Number Reduction + Wheeling Coverage -->
+    <div class="card" id="smart-pick-card" style="border:1px solid rgba(0,255,200,0.15);background:linear-gradient(135deg,rgba(10,30,40,0.95),rgba(5,20,15,0.5));display:none;">
+      <div class="card-title">
+        <span class="icon">🎯</span> 智能缩水 + 轮转覆盖
+        <span style="font-size:0.65rem;font-weight:400;padding:0.1rem 0.5rem;border-radius:9px;background:rgba(0,255,200,0.12);color:#0fc;margin-left:0.5rem;">V5 · 5算法集成</span>
+      </div>
+
+      <!-- 缩水概览 -->
+      <div id="smart-pick-summary" style="padding:0.6rem;background:rgba(10,14,26,0.5);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:0.75rem;">
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:0.5rem;">
+          <div style="text-align:center;">
+            <div style="font-size:1.4rem;font-weight:700;color:#0fc;" id="sp-probability-boost">--×</div>
+            <div style="font-size:0.65rem;color:var(--text-muted);">概率提升</div>
+          </div>
+          <div style="flex:1;min-width:150px;">
+            <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.25rem;">排除号码</div>
+            <div id="sp-eliminated" style="display:flex;flex-wrap:wrap;gap:3px;"></div>
+          </div>
+        </div>
+        <div id="sp-constraints" style="font-size:0.68rem;color:var(--text-muted);"></div>
+      </div>
+
+      <!-- 精选模式 -->
+      <div style="margin-bottom:0.75rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:0.4rem 0;" id="toggle-select-mode">
+          <span style="font-size:0.85rem;font-weight:600;color:var(--gold);">✨ 精选模式</span>
+          <span style="font-size:0.68rem;color:var(--text-muted);" id="sp-select-summary">-- 注 · ¥--</span>
+        </div>
+        <div id="sp-select-picks" style="padding-top:0.3rem;"></div>
+      </div>
+
+      <!-- 覆盖模式 -->
+      <div style="margin-bottom:0.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:0.4rem 0;" id="toggle-coverage-mode">
+          <span style="font-size:0.85rem;font-weight:600;color:var(--cyan);">🛡️ 覆盖模式</span>
+          <span style="font-size:0.68rem;color:var(--text-muted);" id="sp-coverage-summary">-- 注 · ¥--</span>
+        </div>
+        <div id="sp-coverage-picks" style="padding-top:0.3rem;display:none;"></div>
+      </div>
+
+      <div style="padding:0.5rem;background:rgba(10,14,26,0.5);border-radius:var(--radius-sm);font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem;">
+        <strong style="color:#0fc;">📐 数学原理：</strong>
+        5算法(马尔可夫+泊松+贝叶斯+蒙特卡洛+共现亲和)评分 → 排除低概率号 → AC值/和值/奇偶/跨度过滤 → 贪心对覆盖算法生成最优组合。
+      </div>
+    </div>
+
     <div class="section-divider"></div>
 
     <!-- ❹ Analysis Controls -->
