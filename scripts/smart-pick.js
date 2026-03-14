@@ -129,6 +129,9 @@ function generateWheelCovering(coreNums, backNums, pickCount, constraints, mode 
         if (ac < constraints.acRange[0] || ac > constraints.acRange[1]) return;
         const odd = front.filter(n => n % 2 === 1).length;
         if (odd < constraints.oddRange[0] || odd > constraints.oddRange[1]) return;
+        // 跨度约束
+        const span = front[front.length - 1] - front[0];
+        if (span < constraints.spanRange[0] || span > constraints.spanRange[1]) return;
         allCombinations.push(front);
     });
 
@@ -336,9 +339,25 @@ function smartPick(issues, mode = 'both') {
 
     // ===== 阶段2: 生成方案 =====
 
-    // 核心号: 前区取TOP12-15
+    // 核心号: 前区取TOP15, 但确保三区均有代表以满足跨度约束
     const coreCount = Math.min(15, frontCandidates.length);
-    const coreFront = frontCandidates.slice(0, coreCount);
+    let coreFront = frontCandidates.slice(0, coreCount);
+    // 确保三区至少各2个号, 否则从候选池补充
+    const z1 = coreFront.filter(n => n <= 12);
+    const z2 = coreFront.filter(n => n > 12 && n <= 24);
+    const z3 = coreFront.filter(n => n > 24);
+    const minPerZone = 2;
+    const remaining = frontCandidates.filter(n => !coreFront.includes(n));
+    [{ zone: z1, low: 1, high: 12 }, { zone: z2, low: 13, high: 24 }, { zone: z3, low: 25, high: 35 }].forEach(({ zone, low, high }) => {
+        while (zone.length < minPerZone) {
+            const supplement = remaining.find(n => n >= low && n <= high && !coreFront.includes(n));
+            if (!supplement) break;
+            coreFront.push(supplement);
+            zone.push(supplement);
+            remaining.splice(remaining.indexOf(supplement), 1);
+        }
+    });
+    coreFront.sort((a, b) => a - b);
     const coreBack = backCandidates.slice(0, 5);
 
     const output = { select: null, coverage: null };
