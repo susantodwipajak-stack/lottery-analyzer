@@ -270,25 +270,41 @@ function smartQuickPick() {
   showToast('智能选号完成', 'success');
 }
 
-// ---- DLT Bet Calculation ----
+// ---- DLT Bet Calculation (official rules) ----
 function calcDLTBets() {
   const front = getSelectedNums('front'), back = getSelectedNums('back');
   const multiple = parseInt($('#dlt-multiple').value) || 1;
+  const addOn = $('#dlt-addon')?.checked || false;
   if (front.length < 5) { showToast('前区至少选择 5 个号码', 'warning'); return; }
   if (back.length < 2) { showToast('后区至少选择 2 个号码', 'warning'); return; }
   const betCount = comb(front.length, 5) * comb(back.length, 2);
-  const cost = betCount * 2 * multiple;
+  const baseCost = betCount * 2 * multiple;
+  const addOnCost = addOn ? betCount * 1 * multiple : 0;
+  const totalCost = baseCost + addOnCost;
   const isSingle = front.length === 5 && back.length === 2;
+  const betType = front.length > 5 && back.length > 2 ? '双区复式' :
+                  front.length > 5 ? '前区复式' :
+                  back.length > 2 ? '后区复式' : '单式';
   const totalCombs = comb(35, 5) * comb(12, 2);
-  const winProb = betCount / totalCombs;
+  // 期望回报率 (基于固定奖，奖池<8亿)
+  const DLT_PRIZES_LOW = [0, 0, 5000, 300, 150, 15, 5]; // 三~七等奖
+  const prizeProbs = getDLTPrizeProbs();
+  let expectedReturn = 0;
+  prizeProbs.forEach((p, i) => {
+    if (i >= 2 && DLT_PRIZES_LOW[i]) expectedReturn += (p.prob / totalCombs) * DLT_PRIZES_LOW[i];
+  });
+  const returnRate = ((expectedReturn / 2) * 100).toFixed(1);
   $('#dlt-summary').innerHTML = `
-    <div class="result-item"><div class="label">投注方式</div><div class="value neutral">${isSingle ? '单式' : '复式'}</div></div>
+    <div class="result-item"><div class="label">投注方式</div><div class="value neutral">${betType}</div></div>
     <div class="result-item"><div class="label">前区选号</div><div class="value neutral">${front.length}个</div></div>
     <div class="result-item"><div class="label">后区选号</div><div class="value neutral">${back.length}个</div></div>
     <div class="result-item"><div class="label">总注数</div><div class="value gold">${betCount.toLocaleString()}</div></div>
     <div class="result-item"><div class="label">倍数</div><div class="value neutral">${multiple}</div></div>
-    <div class="result-item"><div class="label">投注金额</div><div class="value gold">¥${cost.toLocaleString()}</div></div>
-    <div class="result-item"><div class="label">一等奖概率</div><div class="value positive">1/${Math.round(totalCombs / betCount).toLocaleString()}</div></div>`;
+    <div class="result-item"><div class="label">基本投注</div><div class="value gold">¥${baseCost.toLocaleString()}</div></div>
+    ${addOn ? `<div class="result-item"><div class="label">追加投注</div><div class="value cyan">¥${addOnCost.toLocaleString()}</div></div>` : ''}
+    <div class="result-item"><div class="label">合计金额</div><div class="value gold">¥${totalCost.toLocaleString()}</div></div>
+    <div class="result-item"><div class="label">一等奖概率</div><div class="value positive">1/${Math.round(totalCombs / betCount).toLocaleString()}</div></div>
+    <div class="result-item"><div class="label">固定奖期望回报</div><div class="value ${parseFloat(returnRate) > 50 ? 'positive' : 'negative'}">${returnRate}%</div></div>`;
   $('#dlt-calc-result').classList.remove('hidden');
   showToast('投注计算完成', 'success');
 }
@@ -525,24 +541,42 @@ function drawSumChart() {
   ctx.fillStyle = '#8892a8'; ctx.font = '11px Inter'; ctx.textAlign = 'left'; ctx.fillText('前区和值分布', pad.left + 5, 20);
 }
 
+// 官方7级奖金概率数据 (依据 lottery.gov.cn 规则)
+function getDLTPrizeProbs() {
+  return [
+    { level: '一等奖', rule: '5+2', prob: 1 },
+    { level: '二等奖', rule: '5+1', prob: comb(5, 5) * comb(2, 1) * comb(10, 1) },
+    { level: '三等奖', rule: '5+0 / 4+2', prob: comb(5, 5) * comb(10, 2) + comb(5, 4) * comb(30, 1) * comb(2, 2) },
+    { level: '四等奖', rule: '4+1', prob: comb(5, 4) * comb(30, 1) * comb(2, 1) * comb(10, 1) },
+    { level: '五等奖', rule: '4+0 / 3+2', prob: comb(5, 4) * comb(30, 1) * comb(10, 2) + comb(5, 3) * comb(30, 2) * comb(2, 2) },
+    { level: '六等奖', rule: '3+1 / 2+2', prob: comb(5, 3) * comb(30, 2) * comb(2, 1) * comb(10, 1) + comb(5, 2) * comb(30, 3) * comb(2, 2) },
+    { level: '七等奖', rule: '3+0/2+1/1+2/0+2', prob: comb(5, 3) * comb(30, 2) * comb(10, 2) + comb(5, 2) * comb(30, 3) * comb(2, 1) * comb(10, 1) + comb(5, 1) * comb(30, 4) * comb(2, 2) + comb(30, 5) * comb(2, 2) }
+  ];
+}
+
 function renderProbTable() {
   const total = comb(35, 5) * comb(12, 2);
-  const prizes = [
-    { level: '一等奖', rule: '5+2', prob: 1, prize: '浮动（≥500万）' },
-    { level: '二等奖', rule: '5+1', prob: comb(5, 5) * comb(2, 1) * comb(10, 1), prize: '浮动' },
-    { level: '三等奖', rule: '5+0', prob: comb(5, 5) * comb(10, 2), prize: '10000元' },
-    { level: '四等奖', rule: '4+2', prob: comb(5, 4) * comb(30, 1) * comb(2, 2), prize: '3000元' },
-    { level: '五等奖', rule: '4+1', prob: comb(5, 4) * comb(30, 1) * comb(2, 1) * comb(10, 1), prize: '300元' },
-    { level: '六等奖', rule: '3+2', prob: comb(5, 3) * comb(30, 2) * comb(2, 2), prize: '200元' },
-    { level: '七等奖', rule: '4+0', prob: comb(5, 4) * comb(30, 1) * comb(10, 2), prize: '100元' },
-    { level: '八等奖', rule: '3+1/2+2', prob: comb(5, 3) * comb(30, 2) * comb(2, 1) * comb(10, 1) + comb(5, 2) * comb(30, 3) * comb(2, 2), prize: '15元' },
-    { level: '九等奖', rule: '3+0/2+1/1+2/0+2', prob: comb(5, 3) * comb(30, 2) * comb(10, 2) + comb(5, 2) * comb(30, 3) * comb(2, 1) * comb(10, 1) + comb(5, 1) * comb(30, 4) * comb(2, 2) + comb(30, 5) * comb(2, 2), prize: '5元' }
+  const prizes = getDLTPrizeProbs();
+  // 奖金分两档：奖池<8亿 / ≥8亿
+  const prizeAmounts = [
+    { low: '浮动（最高500万）', high: '浮动（最高500万）' },
+    { low: '浮动', high: '浮动' },
+    { low: '5,000元', high: '6,666元' },
+    { low: '300元', high: '380元' },
+    { low: '150元', high: '200元' },
+    { low: '15元', high: '18元' },
+    { low: '5元', high: '7元' }
   ];
   const tbody = $('#prob-table tbody'); tbody.innerHTML = '';
-  prizes.forEach(p => {
+  // Update table header to show two prize columns
+  const thead = $('#prob-table thead');
+  if (thead) thead.innerHTML = '<tr><th>奖级</th><th>中奖条件</th><th>概率</th><th>约几注中1注</th><th>奖金(池<8亿)</th><th>奖金(池≥8亿)</th><th>追加(80%)</th></tr>';
+  prizes.forEach((p, i) => {
     const oneIn = Math.round(total / p.prob);
     const cls = p.level === '一等奖' ? 'level-1' : p.level === '二等奖' ? 'level-2' : p.level === '三等奖' ? 'level-3' : 'level-else';
-    tbody.innerHTML += `<tr><td><span class="prize-tag ${cls}">${p.level}</span></td><td>${p.rule}</td><td class="text-mono">${(p.prob / total * 100).toFixed(6)}%</td><td class="text-mono">${oneIn.toLocaleString()}</td><td style="color:var(--gold)">${p.prize}</td></tr>`;
+    const amt = prizeAmounts[i];
+    const addOnNote = i <= 1 ? '浮动×80%' : '—';
+    tbody.innerHTML += `<tr><td><span class="prize-tag ${cls}">${p.level}</span></td><td>${p.rule}</td><td class="text-mono">${(p.prob / total * 100).toFixed(6)}%</td><td class="text-mono">${oneIn.toLocaleString()}</td><td style="color:var(--gold)">${amt.low}</td><td style="color:var(--cyan)">${amt.high}</td><td style="color:var(--text-muted);font-size:0.75rem">${addOnNote}</td></tr>`;
   });
 }
 
@@ -699,16 +733,15 @@ function comparePredictions() {
   renderCurrentPredFromStorage();
 }
 
+// 官方7级中奖判定 (依据 lottery.gov.cn 规则)
 function calcHitLevel(fHits, bHits) {
   if (fHits === 5 && bHits === 2) return '一等奖';
   if (fHits === 5 && bHits === 1) return '二等奖';
-  if (fHits === 5 && bHits === 0) return '三等奖';
-  if (fHits === 4 && bHits === 2) return '四等奖';
-  if (fHits === 4 && bHits === 1) return '五等奖';
-  if (fHits === 3 && bHits === 2) return '六等奖';
-  if (fHits === 4 && bHits === 0) return '七等奖';
-  if ((fHits === 3 && bHits === 1) || (fHits === 2 && bHits === 2)) return '八等奖';
-  if ((fHits === 3 && bHits === 0) || (fHits === 2 && bHits === 1) || (fHits === 1 && bHits === 2) || (fHits === 0 && bHits === 2)) return '九等奖';
+  if ((fHits === 5 && bHits === 0) || (fHits === 4 && bHits === 2)) return '三等奖';
+  if (fHits === 4 && bHits === 1) return '四等奖';
+  if ((fHits === 4 && bHits === 0) || (fHits === 3 && bHits === 2)) return '五等奖';
+  if ((fHits === 3 && bHits === 1) || (fHits === 2 && bHits === 2)) return '六等奖';
+  if ((fHits === 3 && bHits === 0) || (fHits === 2 && bHits === 1) || (fHits === 1 && bHits === 2) || (fHits === 0 && bHits === 2)) return '七等奖';
   return '未中奖';
 }
 

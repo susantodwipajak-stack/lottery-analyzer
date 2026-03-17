@@ -177,6 +177,39 @@ function renderMatchList(matches) {
   gameMatches.forEach(m => list.appendChild(renderMatchRow(m)));
   const label = $('#match-count-label'); if (label) label.textContent = gameMatches.length + ' 场比赛';
   updateParlayOptions(); updateBetBar();
+  // Auto-analyze after rendering
+  setTimeout(() => autoAnalyzeMatches(), 100);
+}
+
+// ---- 智能体自动分析 ----
+function autoAnalyzeMatches() {
+  const rows = $$('.match-row');
+  if (rows.length < 2) return;
+
+  // Step 1: Auto-select best outcome for each match (lowest odds = highest probability)
+  rows.forEach(row => {
+    const btns = row.querySelectorAll('.cz-opt-btn');
+    const smBtns = row.querySelectorAll('.cz-opt-btn-sm');
+    if (btns.length >= 3) {
+      let best = null, bestOdds = Infinity;
+      btns.forEach(b => { const o = parseFloat(b.dataset.odds); if (o > 0 && o < bestOdds) { bestOdds = o; best = b; } });
+      if (best && !best.classList.contains('selected')) { best.classList.add('selected'); row.classList.add('has-selection'); }
+    } else if (smBtns.length > 0) {
+      let best = null, bestOdds = Infinity;
+      smBtns.forEach(b => { const o = parseFloat(b.dataset.odds); if (o > 0 && o < bestOdds) { bestOdds = o; best = b; } });
+      if (best && !best.classList.contains('selected')) { best.classList.add('selected'); row.classList.add('has-selection'); }
+    }
+  });
+  updateParlayOptions();
+  updateBetBar();
+
+  // Step 2: Run deep analysis (Kelly, EV, charts)
+  analyzeFootball();
+
+  // Step 3: Generate 5-strategy recommendations
+  generateFbRecommendations();
+
+  showToast('🤖 AI已自动完成赛事分析', 'success');
 }
 
 function switchGameTab(gameType) {
