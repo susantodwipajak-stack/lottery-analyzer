@@ -1,25 +1,25 @@
-﻿ = 'e:\AI文档\体育彩票计算器'
- = New-Object System.Net.HttpListener
-.Prefixes.Add('http://localhost:8080/')
-.Start()
+$root = 'e:\AIProjects\体育彩票计算器'
+$listener = New-Object System.Net.HttpListener
+$listener.Prefixes.Add('http://localhost:8080/')
+$listener.Start()
 Write-Host 'Server running at http://localhost:8080'
-while (.IsListening) {
-     = .GetContext()
-     = .Request.Url.LocalPath
-    if ( -eq '/') {  = '/index.html' }
-     = Join-Path  (.TrimStart('/'))
-    if (Test-Path ) {
-         = [System.IO.Path]::GetExtension()
-         = 'application/octet-stream'
-        if ( -eq '.html') {  = 'text/html; charset=utf-8' }
-        if ( -eq '.css') {  = 'text/css; charset=utf-8' }
-        if ( -eq '.js') {  = 'application/javascript; charset=utf-8' }
-        .Response.ContentType = 
-        .Response.Headers.Add('Access-Control-Allow-Origin', '*')
-         = [System.IO.File]::ReadAllBytes()
-        .Response.OutputStream.Write(, 0, .Length)
+while ($listener.IsListening) {
+    $ctx = $listener.GetContext()
+    $localPath = $ctx.Request.Url.LocalPath
+    if ($localPath -eq '/') { $localPath = '/index.html' }
+    $filePath = Join-Path $root ($localPath.TrimStart('/'))
+    if (Test-Path $filePath) {
+        $ext = [System.IO.Path]::GetExtension($filePath)
+        $ct = 'application/octet-stream'
+        if ($ext -eq '.html') { $ct = 'text/html; charset=utf-8' }
+        if ($ext -eq '.css') { $ct = 'text/css; charset=utf-8' }
+        if ($ext -eq '.js') { $ct = 'application/javascript; charset=utf-8' }
+        $ctx.Response.ContentType = $ct
+        $ctx.Response.Headers.Add('Access-Control-Allow-Origin', '*')
+        $bytes = [System.IO.File]::ReadAllBytes($filePath)
+        $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length)
     } else {
-        .Response.StatusCode = 404
+        $ctx.Response.StatusCode = 404
     }
-    .Response.OutputStream.Close()
+    $ctx.Response.OutputStream.Close()
 }

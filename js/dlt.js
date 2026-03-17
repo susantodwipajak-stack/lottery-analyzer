@@ -569,14 +569,20 @@ function generateRecommendations() {
   ];
   const makeBall = (n, bg) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:${bg};color:#fff;font-weight:700;font-size:0.85rem;margin:0 2px;">${String(n).padStart(2, '0')}</span>`;
   let html = '';
+  const allSets = [];
   strategies.forEach(strat => {
     const front = pickFrontForStrategy(strat), back = pickBackForStrategy(strat);
+    allSets.push({ front, back });
     const sum = front.reduce((a, b) => a + b, 0), odd = front.filter(n => n % 2 === 1).length;
+    const numStr = front.map(n => String(n).padStart(2,'0')).join(' ') + ' + ' + back.map(n => String(n).padStart(2,'0')).join(' ');
     html += `<div style="padding:0.75rem;background:rgba(10,14,26,0.5);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:0.5rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;"><span style="font-weight:700;font-size:0.9rem;">${strat.name}</span><span style="font-size:0.75rem;color:var(--text-muted)">${strat.desc}</span></div>
-      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">${front.map(n => makeBall(n, 'linear-gradient(135deg,#e74c3c,#c0392b)')).join('')}<span style="color:var(--text-muted);font-size:1.1rem;font-weight:300;margin:0 0.25rem;">+</span>${back.map(n => makeBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)')).join('')}</div>
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">${front.map(n => makeBall(n, 'linear-gradient(135deg,#e74c3c,#c0392b)')).join('')}<span style="color:var(--text-muted);font-size:1.1rem;font-weight:300;margin:0 0.25rem;">+</span>${back.map(n => makeBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)')).join('')}<button class="btn-copy-num" onclick="copyNumbers('${numStr}',this)" title="复制号码">📋</button></div>
       <div style="display:flex;gap:0.75rem;margin-top:0.4rem;font-size:0.75rem;color:var(--text-secondary);"><span>和值: <strong style="color:var(--cyan)">${sum}</strong></span><span>奇偶: <strong style="color:var(--cyan)">${odd}:${5 - odd}</strong></span><span>跨度: <strong style="color:var(--cyan)">${front[4] - front[0]}</strong></span></div></div>`;
   });
+  // Copy-all button
+  const allText = allSets.map(s => s.front.map(n => String(n).padStart(2,'0')).join(' ') + ' + ' + s.back.map(n => String(n).padStart(2,'0')).join(' ')).join('\n');
+  html += `<button class="btn-copy-all" onclick="copyNumbers('${allText.replace(/'/g, "\\'").replace(/\n/g, '\\n')}',this)">📋 一键复制全部推荐</button>`;
   container.innerHTML = html;
 }
 
@@ -930,6 +936,8 @@ function renderSmartPick(sp) {
   if (selSumEl) selSumEl.textContent = `${selPicks.length} 注 · ¥${selPicks.length * 2}`;
   if (selContainer) {
     selContainer.innerHTML = renderPickList(selPicks, 'select');
+    const selAllText = selPicks.map(p => p.front.map(n => String(n).padStart(2,'0')).join(' ') + ' + ' + p.back.map(n => String(n).padStart(2,'0')).join(' ')).join('\n');
+    selContainer.innerHTML += `<button class="btn-copy-all" style="border-color:rgba(243,156,18,0.3);color:#f39c12;" onclick="copyNumbers('${selAllText.replace(/'/g, "\\'").replace(/\n/g, '\\n')}',this)">📋 复制全部精选</button>`;
   }
 
   // Coverage mode
@@ -938,6 +946,8 @@ function renderSmartPick(sp) {
   if (covSumEl) covSumEl.textContent = `${covPicks.length} 注 · ¥${covPicks.length * 2}`;
   if (covContainer) {
     covContainer.innerHTML = renderPickList(covPicks, 'coverage');
+    const covAllText = covPicks.map(p => p.front.map(n => String(n).padStart(2,'0')).join(' ') + ' + ' + p.back.map(n => String(n).padStart(2,'0')).join(' ')).join('\n');
+    covContainer.innerHTML += `<button class="btn-copy-all" style="border-color:rgba(0,188,212,0.3);color:#00bcd4;" onclick="copyNumbers('${covAllText.replace(/'/g, "\\'").replace(/\n/g, '\\n')}',this)">📋 复制全部覆盖</button>`;
   }
 
   // Toggle listeners
@@ -965,12 +975,35 @@ function renderPickList(picks, mode) {
     const bBalls = p.back.map(n =>
       `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:${backBg};color:#fff;font-weight:700;font-size:0.75rem;margin:1px;">${String(n).padStart(2, '0')}</span>`
     ).join('');
+    const numStr = p.front.map(n => String(n).padStart(2,'0')).join(' ') + ' + ' + p.back.map(n => String(n).padStart(2,'0')).join(' ');
 
     return `<div style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.4rem;background:rgba(10,14,26,0.3);border:1px solid rgba(255,255,255,0.04);border-radius:var(--radius-sm);margin-bottom:3px;flex-wrap:wrap;">
       <span style="font-size:0.68rem;color:var(--text-muted);min-width:28px;font-weight:600;">#${i + 1}</span>
       ${fBalls}
       <span style="color:var(--text-muted);margin:0 2px;font-size:0.72rem;">+</span>
       ${bBalls}
+      <button class="btn-copy-num" onclick="copyNumbers('${numStr}',this)" title="复制号码">📋</button>
     </div>`;
   }).join('');
+}
+
+// =============================================
+// Copy Numbers to Clipboard
+// =============================================
+function copyNumbers(text, btn) {
+  const decoded = text.replace(/\\n/g, '\n');
+  navigator.clipboard.writeText(decoded).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✅ 已复制';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+  }).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = decoded; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); btn.textContent = '✅ 已复制'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1500); }
+    catch { btn.textContent = '❌ 失败'; setTimeout(() => { btn.textContent = '📋'; }, 1500); }
+    document.body.removeChild(ta);
+  });
 }

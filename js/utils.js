@@ -56,7 +56,7 @@ async function withLoading(btnOrSelector, asyncFn) {
 
 // ---- Utility Functions ----
 const $ = sel => document.querySelector(sel);
-const $$ = sel => document.querySelectorAll(sel);
+const $$ = sel => [...document.querySelectorAll(sel)];
 function comb(n, r) {
   if (r > n || r < 0) return 0;
   if (r === 0 || r === n) return 1;

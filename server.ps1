@@ -1,4 +1,4 @@
-$root = "e:\AI文档\体育彩票计算器"
+$root = "e:\AIProjects\体育彩票计算器"
 $port = 8080
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:${port}/")

@@ -5,7 +5,7 @@
 ### 步骤 1: 创建 GitHub 仓库
 
 ```bash
-cd e:/AI文档/体育彩票计算器
+cd e:/AIProjects/体育彩票计算器
 git init
 git add .
 git commit -m "🎉 初始提交：体彩深度分析 V2.1"

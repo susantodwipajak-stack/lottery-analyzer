@@ -1,4 +1,4 @@
-﻿// =============================================
+// =============================================
 // SECTION 1: 竞彩足球深度分析
 // =============================================
 let matchCount = 0;
@@ -371,7 +371,8 @@ function getMatches() {
 }
 
 function updateBetBar() {
-  const selected = $$('.match-row').filter(r => r.querySelectorAll('.cz-opt-btn.selected, .cz-opt-btn-sm.selected, .odds-toggle.selected').length > 0);
+  const allRows = $$('.match-row');
+  const selected = allRows.filter(r => r.querySelectorAll('.cz-opt-btn.selected, .cz-opt-btn-sm.selected, .odds-toggle.selected').length > 0);
   let betCount = 1;
   selected.forEach(r => {
     const n = r.querySelectorAll('.cz-opt-btn.selected, .cz-opt-btn-sm.selected, .odds-toggle.selected').length;

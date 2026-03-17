@@ -3398,3 +3398,64 @@ input[type="checkbox"] {
     font-size: 0.65rem;
   }
 }
+
+/* ===================================
+   Copy Buttons
+   =================================== */
+.btn-copy-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.btn-copy-num:hover {
+  background: rgba(255,215,0,0.15);
+  border-color: rgba(255,215,0,0.3);
+  color: var(--gold);
+  transform: scale(1.1);
+}
+.btn-copy-num.copied {
+  background: rgba(0,255,136,0.15);
+  border-color: rgba(0,255,136,0.4);
+  color: #0f8;
+  font-size: 0.65rem;
+}
+
+.btn-copy-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  margin-top: 0.5rem;
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(255,215,0,0.25);
+  background: rgba(255,215,0,0.04);
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.btn-copy-all:hover {
+  background: rgba(255,215,0,0.12);
+  border-color: rgba(255,215,0,0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255,215,0,0.1);
+}
+.btn-copy-all.copied {
+  background: rgba(0,255,136,0.1);
+  border-color: rgba(0,255,136,0.4);
+  color: #0f8;
+}
