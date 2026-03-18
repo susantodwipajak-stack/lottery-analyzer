@@ -1138,10 +1138,55 @@ function renderCurrentPredictions(record) {
   container.innerHTML = html;
 }
 
+// Backfill compound/dantuo for old predictions that lack them
+function backfillCompoundDantuo(record) {
+  if (!record || !record.predictions) return;
+  const cc = getCompoundConfig();
+  record.predictions.forEach(p => {
+    if (!p.compound) {
+      // Generate compound from single-bet numbers + nearby scored nums
+      const pool = Array.from({ length: 35 }, (_, i) => i + 1);
+      // Prioritize numbers in the single bet, then fill with adjacent nums
+      const frontSet = new Set(p.front);
+      pool.sort((a, b) => {
+        const aIn = frontSet.has(a) ? 0 : 1;
+        const bIn = frontSet.has(b) ? 0 : 1;
+        if (aIn !== bIn) return aIn - bIn;
+        // Prefer numbers close to selected ones
+        const aDist = Math.min(...p.front.map(f => Math.abs(a - f)));
+        const bDist = Math.min(...p.front.map(f => Math.abs(b - f)));
+        return aDist - bDist;
+      });
+      const cFront = pool.slice(0, cc.front).sort((a, b) => a - b);
+      const bPool = Array.from({ length: 12 }, (_, i) => i + 1);
+      const backSet = new Set(p.back);
+      bPool.sort((a, b) => {
+        const aIn = backSet.has(a) ? 0 : 1;
+        const bIn = backSet.has(b) ? 0 : 1;
+        return aIn - bIn || Math.abs(a - 6) - Math.abs(b - 6);
+      });
+      const cBack = bPool.slice(0, cc.back).sort((a, b) => a - b);
+      p.compound = { front: cFront, back: cBack };
+    }
+    if (!p.dantuo) {
+      const src = p.compound || { front: p.front, back: p.back };
+      const danFc = Math.min(2, src.front.length - 1);
+      const danBc = Math.min(1, src.back.length - 1);
+      p.dantuo = {
+        danF: src.front.slice(0, danFc),
+        tuoF: src.front.slice(danFc),
+        danB: src.back.slice(0, danBc),
+        tuoB: src.back.slice(danBc)
+      };
+    }
+  });
+}
+
 function renderCurrentPredFromStorage() {
   const preds = getPredictions();
   const nextIssue = getNextIssue();
   const current = preds.find(p => p.targetIssue === nextIssue) || (preds.length > 0 ? preds[0] : null);
+  if (current) backfillCompoundDantuo(current);
   renderCurrentPredictions(current);
 }
 
@@ -1240,6 +1285,7 @@ async function loadAutoAnalysis() {
     let imported = 0;
     data.predictionRecords.forEach(record => {
       if (!localPreds.find(p => p.targetIssue === record.targetIssue)) {
+        backfillCompoundDantuo(record);
         localPreds.push(record);
         imported++;
       }
