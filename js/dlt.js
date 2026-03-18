@@ -894,7 +894,7 @@ const PRED_STRATEGIES = [
 
 function getAdaptiveWeights() {
   const perf = getStrategyPerf();
-  const ids = ['hot', 'cold', 'balanced'];
+  const ids = ['pattern', 'hot', 'balanced'];
   let best = null, bestScore = -1;
   ids.forEach(id => {
     const p = perf[id];
@@ -992,7 +992,6 @@ function comparePredictions() {
         // Find best sub-bet level
         let bestLevel = '未中奖', winBets = 0;
         if (cFHits >= 0 && cBHits >= 0) {
-          const { tiers } = calcCompoundPrizeBreakdown(p.compound.front.length, p.compound.back.length);
           // Compute actual wins based on how many winning numbers are in our compound set
           const TIER_MATCHES = [
             [[5,2]], [[5,1]], [[5,0],[4,2]], [[4,1]], [[4,0],[3,2]], [[3,1],[2,2]], [[3,0],[2,1],[1,2],[0,2]]
@@ -1057,12 +1056,23 @@ function calcHitLevel(fHits, bHits) {
 
 function updateStrategyPerf(stratId, hit) {
   const perf = getStrategyPerf();
-  if (!perf[stratId]) perf[stratId] = { total: 0, totalFrontHits: 0, totalBackHits: 0, bestFront: 0, bestBack: 0 };
+  if (!perf[stratId]) perf[stratId] = { total: 0, totalFrontHits: 0, totalBackHits: 0, bestFront: 0, bestBack: 0, compBestLevel: '未中奖', compTotalWins: 0, dtBestLevel: '未中奖' };
   const p = perf[stratId];
   // Bug#4 fix: decay old data before accumulating new
   p.totalFrontHits *= 0.95; p.totalBackHits *= 0.95; p.total = p.total * 0.95 + 1;
   p.totalFrontHits += hit.frontHits; p.totalBackHits += hit.backHits;
   if (hit.frontHits > p.bestFront || (hit.frontHits === p.bestFront && hit.backHits > p.bestBack)) { p.bestFront = hit.frontHits; p.bestBack = hit.backHits; }
+  // Track compound performance
+  if (hit.compound) {
+    p.compTotalWins = (p.compTotalWins || 0) + (hit.compound.winBets || 0);
+    const LEVEL_RANK = { '一等奖':7,'二等奖':6,'三等奖':5,'四等奖':4,'五等奖':3,'六等奖':2,'七等奖':1,'未中奖':0 };
+    if ((LEVEL_RANK[hit.compound.bestLevel] || 0) > (LEVEL_RANK[p.compBestLevel] || 0)) p.compBestLevel = hit.compound.bestLevel;
+  }
+  // Track dantuo performance
+  if (hit.dantuo) {
+    const LEVEL_RANK = { '一等奖':7,'二等奖':6,'三等奖':5,'四等奖':4,'五等奖':3,'六等奖':2,'七等奖':1,'未中奖':0 };
+    if ((LEVEL_RANK[hit.dantuo.bestLevel] || 0) > (LEVEL_RANK[p.dtBestLevel] || 0)) p.dtBestLevel = hit.dantuo.bestLevel;
+  }
   saveStrategyPerf(perf);
 }
 
@@ -1197,13 +1207,13 @@ function renderPerfDashboard() {
   const el = $('#strategy-performance');
   if (!el) return;
   if (Object.keys(perf).length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-title">暂无策略数据</div><div class="empty-state-desc">生成预测并对比开奖结果后，此处将展示各策略的命中率</div></div>'; return; }
-  let html = '<table class="data-table"><thead><tr><th>策略</th><th>预测次数</th><th>平均前区命中</th><th>平均后区命中</th><th>最佳记录</th></tr></thead><tbody>';
+  let html = '<table class="data-table"><thead><tr><th>策略</th><th>预测次数</th><th>平均前区</th><th>平均后区</th><th>单式最佳</th><th>复式最佳</th><th>胆拖最佳</th></tr></thead><tbody>';
   PRED_STRATEGIES.forEach(s => {
     const p = perf[s.id];
-    if (!p || p.total === 0) { html += `<tr><td>${s.name}</td><td>0</td><td>-</td><td>-</td><td>-</td></tr>`; return; }
+    if (!p || p.total === 0) { html += `<tr><td>${s.name}</td><td>0</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`; return; }
     const avgF = (p.totalFrontHits / p.total).toFixed(1), avgB = (p.totalBackHits / p.total).toFixed(1);
     const fColor = parseFloat(avgF) >= 2 ? 'var(--green)' : parseFloat(avgF) >= 1.5 ? 'var(--yellow)' : 'var(--text-muted)';
-    html += `<tr><td>${s.name}</td><td>${p.total}</td><td style="color:${fColor};font-weight:700;">${avgF}/5</td><td style="font-weight:700;">${avgB}/2</td><td style="color:var(--gold)">${p.bestFront}+${p.bestBack}</td></tr>`;
+    html += `<tr><td>${s.name}</td><td>${Math.round(p.total)}</td><td style="color:${fColor};font-weight:700;">${avgF}/5</td><td style="font-weight:700;">${avgB}/2</td><td style="color:var(--gold)">${p.bestFront}+${p.bestBack}</td><td style="color:var(--purple,#9b59b6)">${p.compBestLevel || '-'}</td><td style="color:var(--yellow)">${p.dtBestLevel || '-'}</td></tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;
