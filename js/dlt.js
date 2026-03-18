@@ -550,6 +550,46 @@ function pickBackForStrategy(strat) {
   return scores.slice(0, 2).map(s => s.num).sort((a, b) => a - b);
 }
 
+// ---- Compound Bet Picks (复式推荐: 8前+4后) ----
+function pickCompoundFront(strat) {
+  const s = computeScores(), scores = [];
+  for (let i = 1; i <= 35; i++) {
+    const sc = (strat.wFreq || 0.3) * norm(s.fF, i, s.mxFF) + (strat.wMiss || 0.35) * norm(s.fM, i, s.mxFM) + (strat.wRecent || 0.35) * (s.fR[i] / 10);
+    scores.push({ num: i, score: sc + Math.random() * 0.1 });
+  }
+  scores.sort((a, b) => b.score - a.score);
+  return scores.slice(0, 8).map(s => s.num).sort((a, b) => a - b);
+}
+
+function pickCompoundBack(strat) {
+  const s = computeScores(), scores = [];
+  for (let i = 1; i <= 12; i++) {
+    scores.push({ num: i, score: (strat.wFreq || 0.3) * norm(s.bF, i, s.mxBF) + (strat.wMiss || 0.35) * norm(s.bM, i, s.mxBM) + Math.random() * 0.15 });
+  }
+  scores.sort((a, b) => b.score - a.score);
+  return scores.slice(0, 4).map(s => s.num).sort((a, b) => a - b);
+}
+
+// ---- Dantuo Picks (胆拖推荐: 2胆+6拖 / 1后胆+3后拖) ----
+function pickDantuoPicks(strat) {
+  const s = computeScores(), fScores = [], bScores = [];
+  for (let i = 1; i <= 35; i++) {
+    const sc = (strat.wFreq || 0.3) * norm(s.fF, i, s.mxFF) + (strat.wMiss || 0.35) * norm(s.fM, i, s.mxFM) + (strat.wRecent || 0.35) * (s.fR[i] / 10);
+    fScores.push({ num: i, score: sc });
+  }
+  for (let i = 1; i <= 12; i++) {
+    bScores.push({ num: i, score: (strat.wFreq || 0.3) * norm(s.bF, i, s.mxBF) + (strat.wMiss || 0.35) * norm(s.bM, i, s.mxBM) });
+  }
+  fScores.sort((a, b) => b.score - a.score);
+  bScores.sort((a, b) => b.score - a.score);
+  return {
+    danF: fScores.slice(0, 2).map(s => s.num).sort((a, b) => a - b),
+    tuoF: fScores.slice(2, 8).map(s => s.num).sort((a, b) => a - b),
+    danB: bScores.slice(0, 1).map(s => s.num),
+    tuoB: bScores.slice(1, 4).map(s => s.num).sort((a, b) => a - b)
+  };
+}
+
 // =============================================
 // Frequency Analysis (period-aware)
 // =============================================
@@ -866,7 +906,7 @@ function generatePredictionSet() {
   }
   const predictions = [];
   PRED_STRATEGIES.forEach(strat => {
-    let front, back;
+    let front, back, compound, dantuo;
     if (strat.id === 'random') {
       const pool = Array.from({ length: 35 }, (_, i) => i + 1);
       front = []; while (front.length < 5) { const r = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; front.push(r); }
@@ -874,12 +914,23 @@ function generatePredictionSet() {
       const bPool = Array.from({ length: 12 }, (_, i) => i + 1);
       back = []; while (back.length < 2) { const r = bPool.splice(Math.floor(Math.random() * bPool.length), 1)[0]; back.push(r); }
       back.sort((a, b) => a - b);
+      // Random compound 8+4
+      const rPool2 = Array.from({ length: 35 }, (_, i) => i + 1);
+      const cF = []; while (cF.length < 8) { cF.push(rPool2.splice(Math.floor(Math.random() * rPool2.length), 1)[0]); }
+      cF.sort((a, b) => a - b);
+      const rBPool2 = Array.from({ length: 12 }, (_, i) => i + 1);
+      const cB = []; while (cB.length < 4) { cB.push(rBPool2.splice(Math.floor(Math.random() * rBPool2.length), 1)[0]); }
+      cB.sort((a, b) => a - b);
+      compound = { front: cF, back: cB };
+      dantuo = { danF: cF.slice(0, 2), tuoF: cF.slice(2, 8), danB: cB.slice(0, 1), tuoB: cB.slice(1, 4) };
     } else {
       const w = strat.id === 'adaptive' ? getAdaptiveWeights() : strat;
       front = pickFrontForStrategy(w);
       back = pickBackForStrategy(w);
+      compound = { front: pickCompoundFront(w), back: pickCompoundBack(w) };
+      dantuo = pickDantuoPicks(w);
     }
-    predictions.push({ strategyId: strat.id, label: strat.name, front, back });
+    predictions.push({ strategyId: strat.id, label: strat.name, front, back, compound, dantuo });
   });
   const record = { targetIssue, createdAt: new Date().toISOString(), predictions, result: null, compared: false, hits: null };
   preds.unshift(record);
@@ -887,7 +938,7 @@ function generatePredictionSet() {
   renderCurrentPredictions(record);
   renderPredHistory();
   setButtonLoading(btn, false);
-  showToast(`第 ${targetIssue} 期预测已生成（5组）`, 'success');
+  showToast(`第 ${targetIssue} 期预测已生成（5组×3种投注方式）`, 'success');
 }
 
 function comparePredictions() {
@@ -905,7 +956,50 @@ function comparePredictions() {
     record.hits = record.predictions.map(p => {
       const fHits = p.front.filter(n => draw.front.includes(n)).length;
       const bHits = p.back.filter(n => draw.back.includes(n)).length;
-      return { frontHits: fHits, backHits: bHits, level: calcHitLevel(fHits, bHits) };
+      const hit = { frontHits: fHits, backHits: bHits, level: calcHitLevel(fHits, bHits) };
+      // Compound hit analysis
+      if (p.compound) {
+        const cFHits = p.compound.front.filter(n => draw.front.includes(n)).length;
+        const cBHits = p.compound.back.filter(n => draw.back.includes(n)).length;
+        const totalBets = comb(p.compound.front.length, 5) * comb(p.compound.back.length, 2);
+        // Find best sub-bet level
+        let bestLevel = '未中奖', winBets = 0;
+        if (cFHits >= 0 && cBHits >= 0) {
+          const { tiers } = calcCompoundPrizeBreakdown(p.compound.front.length, p.compound.back.length);
+          // Compute actual wins based on how many winning numbers are in our compound set
+          const TIER_MATCHES = [
+            [[5,2]], [[5,1]], [[5,0],[4,2]], [[4,1]], [[4,0],[3,2]], [[3,1],[2,2]], [[3,0],[2,1],[1,2],[0,2]]
+          ];
+          const TIER_NAMES = ['一等奖','二等奖','三等奖','四等奖','五等奖','六等奖','七等奖'];
+          for (let t = 0; t < TIER_MATCHES.length; t++) {
+            let tierWins = 0;
+            TIER_MATCHES[t].forEach(([hf, hb]) => {
+              if (hf <= cFHits && hb <= cBHits) {
+                tierWins += comb(cFHits, hf) * comb(p.compound.front.length - cFHits, 5 - hf) * comb(cBHits, hb) * comb(p.compound.back.length - cBHits, 2 - hb);
+              }
+            });
+            if (tierWins > 0 && bestLevel === '未中奖') bestLevel = TIER_NAMES[t];
+            winBets += tierWins;
+          }
+        }
+        hit.compound = { frontHits: cFHits, backHits: cBHits, bestLevel, winBets, totalBets };
+      }
+      // Dantuo hit analysis
+      if (p.dantuo) {
+        const danFHits = p.dantuo.danF.filter(n => draw.front.includes(n)).length;
+        const tuoFHits = p.dantuo.tuoF.filter(n => draw.front.includes(n)).length;
+        const danBHits = p.dantuo.danB.filter(n => draw.back.includes(n)).length;
+        const tuoBHits = p.dantuo.tuoB.filter(n => draw.back.includes(n)).length;
+        const allDanOk = danFHits === p.dantuo.danF.length && danBHits === p.dantuo.danB.length;
+        let dtBestLevel = '未中奖';
+        if (allDanOk) {
+          // When all dan hit, check best possible sub-bet
+          const maxF = danFHits + tuoFHits, maxB = danBHits + tuoBHits;
+          dtBestLevel = calcHitLevel(Math.min(maxF, 5), Math.min(maxB, 2));
+        }
+        hit.dantuo = { danFHits, tuoFHits, danBHits, tuoBHits, allDanOk, bestLevel: dtBestLevel };
+      }
+      return hit;
     });
     record.predictions.forEach((p, i) => updateStrategyPerf(p.strategyId, record.hits[i]));
     comparedCount++;
@@ -958,16 +1052,51 @@ function renderCurrentPredictions(record) {
   record.predictions.forEach((p, i) => {
     const hitInfo = record.hits ? record.hits[i] : null;
     const result = record.result;
+    // Compound display helpers
+    const makeMiniPredBall = (n, bg, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : bg};color:${hit ? '#000' : '#fff'};font-weight:600;font-size:0.65rem;margin:0 1px;${hit ? 'box-shadow:0 0 6px rgba(241,196,15,0.5);' : ''}">${String(n).padStart(2, '0')}</span>`;
+    const danBall = (n, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : 'linear-gradient(135deg,#f39c12,#e67e22)'};color:#fff;font-weight:700;font-size:0.65rem;margin:0 1px;border:1.5px solid #f39c12;${hit ? 'box-shadow:0 0 8px rgba(241,196,15,0.6);' : ''}">${String(n).padStart(2, '0')}</span>`;
+    // Compound hit badge
+    let compHitBadge = '';
+    if (hitInfo?.compound) {
+      const ch = hitInfo.compound;
+      compHitBadge = `<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:6px;background:${ch.bestLevel !== '未中奖' ? 'rgba(155,89,182,0.2);color:#9b59b6' : 'rgba(100,100,100,0.15);color:var(--text-muted)'}">${ch.frontHits}+${ch.backHits} ${ch.winBets > 0 ? ch.winBets + '注中奖 ' : ''}${ch.bestLevel}</span>`;
+    }
+    // Dantuo hit badge
+    let dtHitBadge = '';
+    if (hitInfo?.dantuo) {
+      const dt = hitInfo.dantuo;
+      dtHitBadge = `<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:6px;background:${dt.bestLevel !== '未中奖' ? 'rgba(243,156,18,0.2);color:#f39c12' : 'rgba(100,100,100,0.15);color:var(--text-muted)'}">${dt.allDanOk ? '✅胆全中' : '❌胆未全中'} ${dt.bestLevel}</span>`;
+    }
     html += `<div style="padding:0.5rem;background:rgba(10,14,26,0.3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:0.4rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
         <span style="font-weight:600;font-size:0.8rem;">${p.label}</span>
         ${hitInfo ? `<span style="font-size:0.75rem;padding:0.15rem 0.5rem;border-radius:9px;background:${hitInfo.level !== '未中奖' ? 'rgba(241,196,15,0.2);color:var(--gold)' : 'rgba(100,100,100,0.2);color:var(--text-muted)'}">${hitInfo.frontHits}+${hitInfo.backHits} ${hitInfo.level}</span>` : ''}
       </div>
-      <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.3rem;">
+        <span style="font-size:0.6rem;color:var(--text-muted);min-width:2.5rem;">单式</span>
         ${p.front.map(n => makePredBall(n, 'linear-gradient(135deg,#e74c3c,#c0392b)', result ? result.front.includes(n) : false)).join('')}
         <span style="color:var(--text-muted);margin:0 0.15rem;">+</span>
         ${p.back.map(n => makePredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.back.includes(n) : false)).join('')}
-      </div></div>`;
+      </div>
+      ${p.compound ? `<div style="display:flex;align-items:center;gap:0.2rem;flex-wrap:wrap;margin-bottom:0.2rem;">
+        <span style="font-size:0.6rem;color:var(--text-muted);min-width:2.5rem;">复式</span>
+        ${p.compound.front.map(n => makeMiniPredBall(n, 'linear-gradient(135deg,#9b59b6,#8e44ad)', result ? result.front.includes(n) : false)).join('')}
+        <span style="color:var(--text-muted);font-size:0.7rem;">+</span>
+        ${p.compound.back.map(n => makeMiniPredBall(n, 'linear-gradient(135deg,#2c3e50,#34495e)', result ? result.back.includes(n) : false)).join('')}
+        ${compHitBadge}
+      </div>` : ''}
+      ${p.dantuo ? `<div style="display:flex;align-items:center;gap:0.2rem;flex-wrap:wrap;">
+        <span style="font-size:0.6rem;color:var(--text-muted);min-width:2.5rem;">胆拖</span>
+        ${p.dantuo.danF.map(n => danBall(n, result ? result.front.includes(n) : false)).join('')}
+        <span style="color:var(--text-muted);font-size:0.55rem;">胆</span>
+        ${p.dantuo.tuoF.map(n => makeMiniPredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.front.includes(n) : false)).join('')}
+        <span style="color:var(--text-muted);font-size:0.7rem;">+</span>
+        ${p.dantuo.danB.map(n => danBall(n, result ? result.back.includes(n) : false)).join('')}
+        <span style="color:var(--text-muted);font-size:0.55rem;">胆</span>
+        ${p.dantuo.tuoB.map(n => makeMiniPredBall(n, 'linear-gradient(135deg,#2c3e50,#34495e)', result ? result.back.includes(n) : false)).join('')}
+        ${dtHitBadge}
+      </div>` : ''}
+    </div>`;
   });
   container.innerHTML = html;
 }
