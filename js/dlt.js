@@ -550,28 +550,37 @@ function pickBackForStrategy(strat) {
   return scores.slice(0, 2).map(s => s.num).sort((a, b) => a - b);
 }
 
-// ---- Compound Bet Picks (复式推荐: 8前+4后) ----
-function pickCompoundFront(strat) {
+// ---- Compound Bet Picks (复式推荐: 可配置前N+后M) ----
+function pickCompoundFront(strat, count) {
+  count = count || 8;
   const s = computeScores(), scores = [];
   for (let i = 1; i <= 35; i++) {
     const sc = (strat.wFreq || 0.3) * norm(s.fF, i, s.mxFF) + (strat.wMiss || 0.35) * norm(s.fM, i, s.mxFM) + (strat.wRecent || 0.35) * (s.fR[i] / 10);
     scores.push({ num: i, score: sc + Math.random() * 0.1 });
   }
   scores.sort((a, b) => b.score - a.score);
-  return scores.slice(0, 8).map(s => s.num).sort((a, b) => a - b);
+  return scores.slice(0, count).map(s => s.num).sort((a, b) => a - b);
 }
 
-function pickCompoundBack(strat) {
+function pickCompoundBack(strat, count) {
+  count = count || 4;
   const s = computeScores(), scores = [];
   for (let i = 1; i <= 12; i++) {
     scores.push({ num: i, score: (strat.wFreq || 0.3) * norm(s.bF, i, s.mxBF) + (strat.wMiss || 0.35) * norm(s.bM, i, s.mxBM) + Math.random() * 0.15 });
   }
   scores.sort((a, b) => b.score - a.score);
-  return scores.slice(0, 4).map(s => s.num).sort((a, b) => a - b);
+  return scores.slice(0, count).map(s => s.num).sort((a, b) => a - b);
 }
 
-// ---- Dantuo Picks (胆拖推荐: 2胆+6拖 / 1后胆+3后拖) ----
-function pickDantuoPicks(strat) {
+// ---- Dantuo Picks (胆拖推荐: 自适应) ----
+// danCount: 前区胆码数, tuoTotalFront: 前区总号数, backTotal: 后区总号数
+function pickDantuoPicks(strat, totalFront, totalBack) {
+  totalFront = totalFront || 8;
+  totalBack = totalBack || 4;
+  const danFCount = Math.min(2, totalFront - 1);
+  const tuoFCount = totalFront - danFCount;
+  const danBCount = Math.min(1, totalBack - 1);
+  const tuoBCount = totalBack - danBCount;
   const s = computeScores(), fScores = [], bScores = [];
   for (let i = 1; i <= 35; i++) {
     const sc = (strat.wFreq || 0.3) * norm(s.fF, i, s.mxFF) + (strat.wMiss || 0.35) * norm(s.fM, i, s.mxFM) + (strat.wRecent || 0.35) * (s.fR[i] / 10);
@@ -583,11 +592,26 @@ function pickDantuoPicks(strat) {
   fScores.sort((a, b) => b.score - a.score);
   bScores.sort((a, b) => b.score - a.score);
   return {
-    danF: fScores.slice(0, 2).map(s => s.num).sort((a, b) => a - b),
-    tuoF: fScores.slice(2, 8).map(s => s.num).sort((a, b) => a - b),
-    danB: bScores.slice(0, 1).map(s => s.num),
-    tuoB: bScores.slice(1, 4).map(s => s.num).sort((a, b) => a - b)
+    danF: fScores.slice(0, danFCount).map(s => s.num).sort((a, b) => a - b),
+    tuoF: fScores.slice(danFCount, danFCount + tuoFCount).map(s => s.num).sort((a, b) => a - b),
+    danB: bScores.slice(0, danBCount).map(s => s.num),
+    tuoB: bScores.slice(danBCount, danBCount + tuoBCount).map(s => s.num).sort((a, b) => a - b)
   };
+}
+
+// ---- Compound Config & Preview ----
+function getCompoundConfig() {
+  const f = parseInt($('#comp-front-size')?.value) || 8;
+  const b = parseInt($('#comp-back-size')?.value) || 4;
+  return { front: Math.max(6, Math.min(f, 20)), back: Math.max(2, Math.min(b, 12)) };
+}
+
+function updateCompCostPreview() {
+  const { front, back } = getCompoundConfig();
+  const bets = comb(front, 5) * comb(back, 2);
+  const cost = bets * 2;
+  const el = $('#comp-cost-preview');
+  if (el) el.textContent = `${bets.toLocaleString()}注 ¥${cost.toLocaleString()}`;
 }
 
 // =============================================
@@ -914,21 +938,24 @@ function generatePredictionSet() {
       const bPool = Array.from({ length: 12 }, (_, i) => i + 1);
       back = []; while (back.length < 2) { const r = bPool.splice(Math.floor(Math.random() * bPool.length), 1)[0]; back.push(r); }
       back.sort((a, b) => a - b);
-      // Random compound 8+4
+      // Random compound (configurable size)
+      const cc = getCompoundConfig();
       const rPool2 = Array.from({ length: 35 }, (_, i) => i + 1);
-      const cF = []; while (cF.length < 8) { cF.push(rPool2.splice(Math.floor(Math.random() * rPool2.length), 1)[0]); }
+      const cF = []; while (cF.length < cc.front) { cF.push(rPool2.splice(Math.floor(Math.random() * rPool2.length), 1)[0]); }
       cF.sort((a, b) => a - b);
       const rBPool2 = Array.from({ length: 12 }, (_, i) => i + 1);
-      const cB = []; while (cB.length < 4) { cB.push(rBPool2.splice(Math.floor(Math.random() * rBPool2.length), 1)[0]); }
+      const cB = []; while (cB.length < cc.back) { cB.push(rBPool2.splice(Math.floor(Math.random() * rBPool2.length), 1)[0]); }
       cB.sort((a, b) => a - b);
       compound = { front: cF, back: cB };
-      dantuo = { danF: cF.slice(0, 2), tuoF: cF.slice(2, 8), danB: cB.slice(0, 1), tuoB: cB.slice(1, 4) };
+      const danFc = Math.min(2, cc.front - 1), danBc = Math.min(1, cc.back - 1);
+      dantuo = { danF: cF.slice(0, danFc), tuoF: cF.slice(danFc), danB: cB.slice(0, danBc), tuoB: cB.slice(danBc) };
     } else {
       const w = strat.id === 'adaptive' ? getAdaptiveWeights() : strat;
+      const cc = getCompoundConfig();
       front = pickFrontForStrategy(w);
       back = pickBackForStrategy(w);
-      compound = { front: pickCompoundFront(w), back: pickCompoundBack(w) };
-      dantuo = pickDantuoPicks(w);
+      compound = { front: pickCompoundFront(w, cc.front), back: pickCompoundBack(w, cc.back) };
+      dantuo = pickDantuoPicks(w, cc.front, cc.back);
     }
     predictions.push({ strategyId: strat.id, label: strat.name, front, back, compound, dantuo });
   });

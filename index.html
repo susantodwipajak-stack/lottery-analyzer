@@ -273,6 +273,29 @@
             <button class="btn btn-secondary btn-sm" id="btn-compare-pred">🔍 对比开奖</button>
           </div>
         </div>
+        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem;padding:0.5rem;background:rgba(155,89,182,0.08);border:1px solid rgba(155,89,182,0.2);border-radius:var(--radius-sm);">
+          <span style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">复式规格：</span>
+          <label style="font-size:0.75rem;color:var(--text-secondary);">前区
+            <select id="comp-front-size" style="padding:0.2rem 0.4rem;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;" onchange="updateCompCostPreview()">
+              <option value="6">6个</option>
+              <option value="7">7个</option>
+              <option value="8" selected>8个</option>
+              <option value="9">9个</option>
+              <option value="10">10个</option>
+              <option value="12">12个</option>
+            </select>
+          </label>
+          <label style="font-size:0.75rem;color:var(--text-secondary);">后区
+            <select id="comp-back-size" style="padding:0.2rem 0.4rem;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;" onchange="updateCompCostPreview()">
+              <option value="2">2个</option>
+              <option value="3">3个</option>
+              <option value="4" selected>4个</option>
+              <option value="5">5个</option>
+              <option value="6">6个</option>
+            </select>
+          </label>
+          <span id="comp-cost-preview" style="font-size:0.75rem;color:var(--gold);font-weight:600;">336注 ¥672</span>
+        </div>
         <div id="prediction-sets">
           <p style="font-size:0.8rem;color:var(--text-muted)">点击「生成预测」为下一期生成 5 组号码</p>
         </div>
@@ -729,11 +752,11 @@
   </footer>
 
   <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
-  <script src="js/utils.js?v=20260318d"></script>
-  <script src="js/football.js?v=20260318d"></script>
-  <script src="js/dlt.js?v=20260318d"></script>
-  <script src="js/charts.js?v=20260318d"></script>
-  <script src="js/main.js?v=20260318d"></script>
+  <script src="js/utils.js?v=20260318e"></script>
+  <script src="js/football.js?v=20260318e"></script>
+  <script src="js/dlt.js?v=20260318e"></script>
+  <script src="js/charts.js?v=20260318e"></script>
+  <script src="js/main.js?v=20260318e"></script>
 </body>
 
 </html>
