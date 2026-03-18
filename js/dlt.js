@@ -235,7 +235,27 @@ function initNumberGrid() {
   }
 }
 
-function toggleBall(ball, zone) { ball.classList.toggle(zone === 'front' ? 'selected-front' : 'selected-back'); }
+function toggleBall(ball, zone) {
+  const betType = $('#dlt-bet-type')?.value || 'single';
+  if (betType === 'dantuo') {
+    // In dantuo mode: single click = tuo (blue), already-selected click = unselect
+    const tuoCls = zone === 'front' ? 'selected-front' : 'selected-back';
+    const danCls = zone === 'front' ? 'dan-front' : 'dan-back';
+    if (ball.classList.contains(danCls)) {
+      // Dan → unselect
+      ball.classList.remove(danCls);
+    } else if (ball.classList.contains(tuoCls)) {
+      // Tuo → Dan (toggle to dan)
+      ball.classList.remove(tuoCls);
+      ball.classList.add(danCls);
+    } else {
+      // Unselected → Tuo
+      ball.classList.add(tuoCls);
+    }
+  } else {
+    ball.classList.toggle(zone === 'front' ? 'selected-front' : 'selected-back');
+  }
+}
 
 function getSelectedNums(zone) {
   const cls = zone === 'front' ? 'selected-front' : 'selected-back';
@@ -270,27 +290,174 @@ function smartQuickPick() {
   showToast('智能选号完成', 'success');
 }
 
-// ---- DLT Bet Calculation (official rules) ----
+// ---- Compound Bet Prize Breakdown (复式每级中奖明细) ----
+// Given user selected n front numbers and m back numbers,
+// compute how many sub-bets win each prize tier.
+// Formula per tier: for each (hitF, hitB) condition:
+//   C(winF, hitF) × C(n - winF, 5 - hitF) × C(winB, hitB) × C(m - winB, 2 - hitB)
+// where winF=5 (winning front count) and winB=2 (winning back count)
+function calcCompoundPrizeBreakdown(nFront, mBack) {
+  const TIERS = [
+    { level: '一等奖', matches: [[5,2]], low: 5000000, high: 5000000, floating: true },
+    { level: '二等奖', matches: [[5,1]], low: 100000, high: 100000, floating: true },
+    { level: '三等奖', matches: [[5,0],[4,2]], low: 5000, high: 6666 },
+    { level: '四等奖', matches: [[4,1]], low: 300, high: 380 },
+    { level: '五等奖', matches: [[4,0],[3,2]], low: 150, high: 200 },
+    { level: '六等奖', matches: [[3,1],[2,2]], low: 15, high: 18 },
+    { level: '七等奖', matches: [[3,0],[2,1],[1,2],[0,2]], low: 5, high: 7 }
+  ];
+  const winF = 5, winB = 2; // 中奖号码数
+  const result = [];
+  let totalHitBets = 0;
+  TIERS.forEach(tier => {
+    let tierBets = 0;
+    tier.matches.forEach(([hf, hb]) => {
+      // 前区: 从5个中奖号选hf个 × 从(n-5)个非中奖号选(5-hf)个
+      // 后区: 从2个中奖号选hb个 × 从(m-2)个非中奖号选(2-hb)个
+      const fHit = comb(winF, hf) * comb(nFront - winF, 5 - hf);
+      const bHit = comb(winB, hb) * comb(mBack - winB, 2 - hb);
+      tierBets += fHit * bHit;
+    });
+    totalHitBets += tierBets;
+    result.push({ ...tier, bets: tierBets });
+  });
+  return { tiers: result, totalHitBets };
+}
+
+// ---- Dantuo number parsing ----
+function getDantuoNums() {
+  const danFront = Array.from($$('.dlt-zone-grid .num-ball.dan-front')).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
+  const tuoFront = Array.from($$('.dlt-zone-grid .num-ball.selected-front')).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
+  const danBack = Array.from($$('#back-zone .num-ball.dan-back')).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
+  const tuoBack = Array.from($$('#back-zone .num-ball.selected-back')).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
+  return { danFront, tuoFront, danBack, tuoBack };
+}
+
+// ---- Bet type change handler ----
+function onBetTypeChange() {
+  const type = $('#dlt-bet-type')?.value || 'single';
+  const hint = $('#dlt-bet-hint');
+  if (!hint) return;
+  if (type === 'single') {
+    hint.innerHTML = '💡 单式：前区选 <b>5</b> 个，后区选 <b>2</b> 个';
+    hint.style.display = '';
+    $$('.num-ball').forEach(b => { b.classList.remove('dan-front', 'dan-back'); });
+  } else if (type === 'multi') {
+    hint.innerHTML = '💡 复式：前区选 <b>6~20</b> 个，后区选 <b>2~12</b> 个，系统自动展开为多注';
+    hint.style.display = '';
+    $$('.num-ball').forEach(b => { b.classList.remove('dan-front', 'dan-back'); });
+  } else if (type === 'dantuo') {
+    hint.innerHTML = '💡 胆拖：<b>单击</b>=拖码(蓝)，<b>双击</b>=胆码(金)。前区胆码1-4个，拖码≥1个';
+    hint.style.display = '';
+  }
+}
+
+// ---- DLT Bet Calculation (official rules, compound/dantuo) ----
 function calcDLTBets() {
-  const front = getSelectedNums('front'), back = getSelectedNums('back');
+  const betType = $('#dlt-bet-type')?.value || 'single';
   const multiple = parseInt($('#dlt-multiple').value) || 1;
   const addOn = $('#dlt-addon')?.checked || false;
-  if (front.length < 5) { showToast('前区至少选择 5 个号码', 'warning'); return; }
-  if (back.length < 2) { showToast('后区至少选择 2 个号码', 'warning'); return; }
-  const betCount = comb(front.length, 5) * comb(back.length, 2);
+  
+  let betCount, front, back, betTypeLabel, danInfo = '';
+
+  if (betType === 'dantuo') {
+    // ---- 胆拖模式 ----
+    const { danFront, tuoFront, danBack, tuoBack } = getDantuoNums();
+    if (danFront.length < 1) { showToast('胆拖：前区至少选1个胆码（双击选择）', 'warning'); return; }
+    if (danFront.length > 4) { showToast('胆拖：前区胆码最多4个', 'warning'); return; }
+    if (tuoFront.length < 1) { showToast('胆拖：前区至少选1个拖码', 'warning'); return; }
+    if (danFront.length + tuoFront.length < 6) { showToast('胆拖：前区胆码+拖码至少6个', 'warning'); return; }
+    const needFrontTuo = 5 - danFront.length;
+    if (tuoFront.length < needFrontTuo) { showToast(`胆拖：需要至少${needFrontTuo}个前区拖码`, 'warning'); return; }
+    const backTotal = danBack.length + tuoBack.length;
+    if (danBack.length > 1) { showToast('胆拖：后区胆码最多1个', 'warning'); return; }
+    if (backTotal < 2) { showToast('胆拖：后区至少选2个号码', 'warning'); return; }
+    const needBackTuo = 2 - danBack.length;
+    if (tuoBack.length < needBackTuo) { showToast(`胆拖：需要至少${needBackTuo}个后区拖码`, 'warning'); return; }
+
+    betCount = comb(tuoFront.length, needFrontTuo) * comb(tuoBack.length, needBackTuo);
+    front = [...danFront, ...tuoFront];
+    back = [...danBack, ...tuoBack];
+    betTypeLabel = '胆拖';
+    danInfo = `<div class="result-item"><div class="label">前区胆码</div><div class="value gold">${danFront.map(n => String(n).padStart(2,'0')).join(' ')}</div></div>
+    <div class="result-item"><div class="label">前区拖码</div><div class="value cyan">${tuoFront.map(n => String(n).padStart(2,'0')).join(' ')}</div></div>
+    <div class="result-item"><div class="label">后区胆码</div><div class="value gold">${danBack.length ? danBack.map(n => String(n).padStart(2,'0')).join(' ') : '无'}</div></div>
+    <div class="result-item"><div class="label">后区拖码</div><div class="value cyan">${tuoBack.map(n => String(n).padStart(2,'0')).join(' ')}</div></div>`;
+  } else {
+    // ---- 单式 / 复式 ----
+    front = getSelectedNums('front');
+    back = getSelectedNums('back');
+    if (front.length < 5) { showToast('前区至少选择 5 个号码', 'warning'); return; }
+    if (back.length < 2) { showToast('后区至少选择 2 个号码', 'warning'); return; }
+    if (betType === 'single' && (front.length !== 5 || back.length !== 2)) {
+      showToast('单式投注：前区必须选5个，后区必须选2个', 'warning'); return;
+    }
+    betCount = comb(front.length, 5) * comb(back.length, 2);
+    betTypeLabel = front.length > 5 && back.length > 2 ? '双区复式' :
+                   front.length > 5 ? '前区复式' :
+                   back.length > 2 ? '后区复式' : '单式';
+  }
+
   const baseCost = betCount * 2 * multiple;
   const addOnCost = addOn ? betCount * 1 * multiple : 0;
   const totalCost = baseCost + addOnCost;
+
   // 官方规则第十条: 单张基本投注最大¥20,000, 基本+追加最大¥30,000
   let limitWarning = '';
   if (baseCost > 20000) limitWarning = `⚠️ 基本投注¥${baseCost.toLocaleString()}超出单张限额¥20,000`;
   if (totalCost > 30000) limitWarning = `⚠️ 合计¥${totalCost.toLocaleString()}超出单张限额¥30,000`;
-  const isSingle = front.length === 5 && back.length === 2;
-  const betType = front.length > 5 && back.length > 2 ? '双区复式' :
-                  front.length > 5 ? '前区复式' :
-                  back.length > 2 ? '后区复式' : '单式';
+
   const totalCombs = comb(35, 5) * comb(12, 2);
-  // 期望回报率 (基于固定奖，奖池<8亿)
+
+  // ---- 复式/胆拖每级中奖明细 ----
+  let prizeBreakdownHTML = '';
+  let compoundReturnRate = '';
+  const isCompound = betCount > 1;
+  
+  if (isCompound) {
+    const nF = front.length, mB = back.length;
+    const { tiers, totalHitBets } = calcCompoundPrizeBreakdown(nF, mB);
+    const DLT_PRIZES_LOW = { '一等奖': 5000000, '二等奖': 100000, '三等奖': 5000, '四等奖': 300, '五等奖': 150, '六等奖': 15, '七等奖': 5 };
+    
+    let totalExpectedPrize = 0;
+    let breakdownRows = '';
+    tiers.forEach(t => {
+      if (t.bets === 0) return;
+      const prob = (t.bets / totalCombs * 100);
+      const probStr = prob < 0.0001 ? prob.toExponential(2) : prob.toFixed(4);
+      const prizeLow = DLT_PRIZES_LOW[t.level] || 0;
+      const expectedPrize = (t.bets / totalCombs) * prizeLow;
+      totalExpectedPrize += expectedPrize;
+      breakdownRows += `<tr>
+        <td style="font-weight:600">${t.level}</td>
+        <td>${t.bets.toLocaleString()} 注</td>
+        <td>${probStr}%</td>
+        <td>¥${prizeLow.toLocaleString()}</td>
+        <td style="color:var(--gold)">¥${expectedPrize.toFixed(2)}</td>
+      </tr>`;
+    });
+
+    compoundReturnRate = ((totalExpectedPrize / totalCost) * 100).toFixed(2);
+    
+    prizeBreakdownHTML = `<div style="margin-top:1rem;">
+      <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:0.5rem;">📊 复式中奖概率明细（共 ${betCount.toLocaleString()} 注）</div>
+      <table class="data-table" style="font-size:0.75rem;">
+        <thead><tr><th>奖级</th><th>中奖注数</th><th>概率</th><th>单注奖金</th><th>期望奖金</th></tr></thead>
+        <tbody>${breakdownRows}</tbody>
+        <tfoot><tr style="font-weight:700;border-top:1px solid var(--border);">
+          <td colspan="3">合计期望收益</td>
+          <td colspan="2" style="color:var(--gold)">¥${totalExpectedPrize.toFixed(2)}</td>
+        </tr></tfoot>
+      </table>
+      <div style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-secondary);">
+        💰 期望回报率: <span style="color:${parseFloat(compoundReturnRate) > 50 ? 'var(--green)' : 'var(--yellow)'};font-weight:700;">${compoundReturnRate}%</span>
+        &nbsp;·&nbsp; 投注成本: ¥${totalCost.toLocaleString()}
+        &nbsp;·&nbsp; 注: 一/二等奖按最高金额估算，实际为浮动
+      </div>
+    </div>`;
+  }
+
+  // 单注期望回报率
   const DLT_PRIZES_LOW = [0, 0, 5000, 300, 150, 15, 5]; // 三~七等奖
   const prizeProbs = getDLTPrizeProbs();
   let expectedReturn = 0;
@@ -298,8 +465,11 @@ function calcDLTBets() {
     if (i >= 2 && DLT_PRIZES_LOW[i]) expectedReturn += (p.prob / totalCombs) * DLT_PRIZES_LOW[i];
   });
   const returnRate = ((expectedReturn / 2) * 100).toFixed(1);
+
+  // ---- Render ----
   $('#dlt-summary').innerHTML = `
-    <div class="result-item"><div class="label">投注方式</div><div class="value neutral">${betType}</div></div>
+    ${danInfo}
+    <div class="result-item"><div class="label">投注方式</div><div class="value neutral">${betTypeLabel}</div></div>
     <div class="result-item"><div class="label">前区选号</div><div class="value neutral">${front.length}个</div></div>
     <div class="result-item"><div class="label">后区选号</div><div class="value neutral">${back.length}个</div></div>
     <div class="result-item"><div class="label">总注数</div><div class="value gold">${betCount.toLocaleString()}</div></div>
@@ -308,11 +478,24 @@ function calcDLTBets() {
     ${addOn ? `<div class="result-item"><div class="label">追加投注</div><div class="value cyan">¥${addOnCost.toLocaleString()}</div></div>` : ''}
     <div class="result-item"><div class="label">合计金额</div><div class="value gold">¥${totalCost.toLocaleString()}</div></div>
     <div class="result-item"><div class="label">一等奖概率</div><div class="value positive">1/${Math.round(totalCombs / betCount).toLocaleString()}</div></div>
-    <div class="result-item"><div class="label">固定奖期望回报</div><div class="value ${parseFloat(returnRate) > 50 ? 'positive' : 'negative'}">${returnRate}%</div></div>
+    <div class="result-item"><div class="label">单注期望回报</div><div class="value ${parseFloat(returnRate) > 50 ? 'positive' : 'negative'}">${returnRate}%</div></div>
     ${limitWarning ? `<div class="result-item" style="grid-column:1/-1"><div class="value negative" style="font-size:0.8rem">${limitWarning}</div></div>` : ''}`;
+  
+  // Append compound breakdown after the grid
+  const breakdownContainer = document.getElementById('dlt-prize-breakdown');
+  if (breakdownContainer) {
+    breakdownContainer.innerHTML = prizeBreakdownHTML;
+  } else if (prizeBreakdownHTML) {
+    // Create container if not exists
+    const container = document.createElement('div');
+    container.id = 'dlt-prize-breakdown';
+    container.innerHTML = prizeBreakdownHTML;
+    $('#dlt-summary').parentElement.appendChild(container);
+  }
+
   $('#dlt-calc-result').classList.remove('hidden');
   if (limitWarning) showToast(limitWarning, 'warning');
-  else showToast('投注计算完成', 'success');
+  else showToast(`${betTypeLabel}计算完成：${betCount.toLocaleString()}注`, 'success');
 }
 
 // ---- Period-aware analysis helpers ----

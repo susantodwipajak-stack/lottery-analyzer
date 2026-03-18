@@ -1558,6 +1558,25 @@ body {
   animation: ballBounce 0.3s ease;
 }
 
+/* Dantuo mode: dan (胆码) — gold */
+.num-ball.dan-front {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  border-color: #f39c12;
+  color: #fff;
+  box-shadow: 0 0 14px rgba(243, 156, 18, 0.5);
+  transform: scale(1.15);
+  animation: ballBounce 0.3s ease;
+}
+
+.num-ball.dan-back {
+  background: linear-gradient(135deg, #f39c12, #d68910);
+  border-color: #f39c12;
+  color: #fff;
+  box-shadow: 0 0 14px rgba(243, 156, 18, 0.5);
+  transform: scale(1.15);
+  animation: ballBounce 0.3s ease;
+}
+
 @keyframes ballBounce {
   0% {
     transform: scale(0.8);

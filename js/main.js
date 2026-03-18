@@ -183,6 +183,7 @@ function toggleAutoUpdate() {
 // Event Bindings
 // =============================================
 $('#btn-calc-dlt').addEventListener('click', calcDLTBets);
+$('#dlt-bet-type')?.addEventListener('change', onBetTypeChange);
 $('#btn-analyze-history').addEventListener('click', analyzeHistory);
 $('#btn-show-history').addEventListener('click', showHistory);
 $('#btn-close-history').addEventListener('click', () => $('#history-modal').classList.add('hidden'));
