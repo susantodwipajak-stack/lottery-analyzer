@@ -917,6 +917,9 @@ function getNextIssue() {
   const latest = String(DLT_HISTORY[0].issue);
   return String(parseInt(latest) + 1);
 }
+let _cachedSmartPicks = null;
+function getStoredSmartPicks() { return _cachedSmartPicks; }
+function setStoredSmartPicks(sp) { _cachedSmartPicks = sp; }
 
 function generatePredictionSet() {
   const btn = $('#btn-generate-pred');
@@ -959,13 +962,35 @@ function generatePredictionSet() {
     }
     predictions.push({ strategyId: strat.id, label: strat.name, front, back, compound, dantuo });
   });
-  const record = { targetIssue, createdAt: new Date().toISOString(), predictions, result: null, compared: false, hits: null };
+
+  // Also store recommendation picks (下期建议号码)
+  const recStrategies = [
+    { name: '🎯 自适应推荐', wFreq: 0.4, wMiss: 0.15, wRecent: 0.25 },
+    { name: '📊 模式推荐', wFreq: 0.2, wMiss: 0.15, wRecent: 0.25 },
+    { name: '🔥 热号推荐', wFreq: 0.5, wMiss: 0.1, wRecent: 0.4 }
+  ];
+  const recommendations = recStrategies.map(s => ({
+    label: s.name,
+    front: pickFrontForStrategy(s),
+    back: pickBackForStrategy(s)
+  }));
+
+  // Store smartPick data (精选/覆盖模式) if available
+  const spData = getStoredSmartPicks();
+  const smartPicks = spData ? { select: spData.select || [], coverage: spData.coverage || [] } : null;
+
+  const record = {
+    targetIssue, createdAt: new Date().toISOString(),
+    predictions, recommendations, smartPicks,
+    result: null, compared: false, hits: null,
+    recHits: null, spHits: null
+  };
   preds.unshift(record);
   savePredictions(preds);
   renderCurrentPredictions(record);
   renderPredHistory();
   setButtonLoading(btn, false);
-  showToast(`第 ${targetIssue} 期预测已生成（5组×3种投注方式）`, 'success');
+  showToast(`第 ${targetIssue} 期预测已生成（5策略 + 3推荐 + 精选/覆盖）`, 'success');
 }
 
 function comparePredictions() {
@@ -1028,6 +1053,38 @@ function comparePredictions() {
       return hit;
     });
     record.predictions.forEach((p, i) => updateStrategyPerf(p.strategyId, record.hits[i]));
+
+    // Compare recommendations (下期建议号码)
+    if (record.recommendations) {
+      record.recHits = record.recommendations.map(r => ({
+        frontHits: r.front.filter(n => draw.front.includes(n)).length,
+        backHits: r.back.filter(n => draw.back.includes(n)).length,
+        level: calcHitLevel(
+          r.front.filter(n => draw.front.includes(n)).length,
+          r.back.filter(n => draw.back.includes(n)).length
+        )
+      }));
+    }
+
+    // Compare smartPicks (精选/覆盖模式)
+    if (record.smartPicks) {
+      const calcPickHits = picks => picks.map(p => {
+        const fh = p.front.filter(n => draw.front.includes(n)).length;
+        const bh = p.back.filter(n => draw.back.includes(n)).length;
+        return { frontHits: fh, backHits: bh, level: calcHitLevel(fh, bh) };
+      });
+      const selHits = calcPickHits(record.smartPicks.select || []);
+      const covHits = calcPickHits(record.smartPicks.coverage || []);
+      const bestSel = selHits.length > 0 ? selHits.reduce((a, b) => (a.frontHits + a.backHits) > (b.frontHits + b.backHits) ? a : b) : null;
+      const bestCov = covHits.length > 0 ? covHits.reduce((a, b) => (a.frontHits + a.backHits) > (b.frontHits + b.backHits) ? a : b) : null;
+      record.spHits = {
+        select: selHits, coverage: covHits,
+        bestSelect: bestSel, bestCoverage: bestCov,
+        selectWins: selHits.filter(h => h.level !== '未中奖').length,
+        coverageWins: covHits.filter(h => h.level !== '未中奖').length
+      };
+    }
+
     comparedCount++;
   });
   savePredictions(preds);
@@ -1136,6 +1193,44 @@ function renderCurrentPredictions(record) {
     </div>`;
   });
   container.innerHTML = html;
+
+  // Render recommendation hits
+  if (record.recommendations && record.recommendations.length > 0) {
+    let recHtml = '<div style="margin-top:0.5rem;padding:0.5rem;background:rgba(243,156,18,0.05);border:1px solid rgba(243,156,18,0.15);border-radius:var(--radius-sm);">';
+    recHtml += '<div style="font-size:0.75rem;font-weight:600;color:#f39c12;margin-bottom:0.3rem;">下期建议号码</div>';
+    record.recommendations.forEach((r, i) => {
+      const rh = record.recHits ? record.recHits[i] : null;
+      const result = record.result;
+      recHtml += `<div style="display:flex;align-items:center;gap:0.2rem;margin-bottom:0.2rem;flex-wrap:wrap;">
+        <span style="font-size:0.6rem;color:var(--text-muted);min-width:5rem;">${r.label}</span>
+        ${r.front.map(n => makePredBall(n, 'linear-gradient(135deg,#f39c12,#e67e22)', result ? result.front.includes(n) : false)).join('')}
+        <span style="color:var(--text-muted);font-size:0.7rem;">+</span>
+        ${r.back.map(n => makePredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.back.includes(n) : false)).join('')}
+        ${rh ? `<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:6px;background:${rh.level !== '未中奖' ? 'rgba(241,196,15,0.2);color:var(--gold)' : 'rgba(100,100,100,0.15);color:var(--text-muted)'}">${rh.frontHits}+${rh.backHits} ${rh.level}</span>` : ''}
+      </div>`;
+    });
+    recHtml += '</div>';
+    container.innerHTML += recHtml;
+  }
+
+  // Render smartPick hits summary
+  if (record.smartPicks && (record.smartPicks.select?.length > 0 || record.smartPicks.coverage?.length > 0)) {
+    let spHtml = '<div style="margin-top:0.4rem;padding:0.5rem;background:rgba(0,188,212,0.05);border:1px solid rgba(0,188,212,0.15);border-radius:var(--radius-sm);">';
+    spHtml += '<div style="font-size:0.75rem;font-weight:600;color:#00bcd4;margin-bottom:0.3rem;">精选/覆盖模式</div>';
+    const sh = record.spHits;
+    if (record.smartPicks.select?.length > 0) {
+      spHtml += `<div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:0.2rem;">精选: ${record.smartPicks.select.length}注`;
+      if (sh) spHtml += ` · ${sh.selectWins}注中奖 · 最佳: ${sh.bestSelect ? sh.bestSelect.frontHits + '+' + sh.bestSelect.backHits + ' ' + sh.bestSelect.level : '-'}`;
+      spHtml += '</div>';
+    }
+    if (record.smartPicks.coverage?.length > 0) {
+      spHtml += `<div style="font-size:0.7rem;color:var(--text-secondary);">覆盖: ${record.smartPicks.coverage.length}注`;
+      if (sh) spHtml += ` · ${sh.coverageWins}注中奖 · 最佳: ${sh.bestCoverage ? sh.bestCoverage.frontHits + '+' + sh.bestCoverage.backHits + ' ' + sh.bestCoverage.level : '-'}`;
+      spHtml += '</div>';
+    }
+    spHtml += '</div>';
+    container.innerHTML += spHtml;
+  }
 }
 
 // Backfill compound/dantuo for old predictions that lack them
@@ -1313,6 +1408,7 @@ async function loadAutoAnalysis() {
 
     // Render smart-pick if available
     if (data.smartPick) {
+      setStoredSmartPicks(data.smartPick);
       renderSmartPick(data.smartPick);
     }
   } catch { /* data/analysis.json not available (local dev) */ }
