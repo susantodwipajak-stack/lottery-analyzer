@@ -400,7 +400,7 @@ function smartPick(issues, mode = 'both') {
         console.log(`  覆盖保证 (蒙特卡洛估算):`);
         Object.entries(coverage.guaranteeLevel).forEach(([key, val]) => {
             const k = parseInt(key.replace('core', ''));
-            const desc = val >= 3 ? '✅ 可中七等奖以上' : val >= 2 ? '✅ 可中八/九等奖' : '⚠️ 最少命中';
+            const desc = val >= 3 ? '✅ 可中五等奖以上' : val >= 2 ? '✅ 可中六/七等奖' : '⚠️ 最少命中';
             console.log(`    核心号命中${k}个 → 至少1注命中${val}个号 ${desc}`);
         });
         console.log(`\n  每个核心号被覆盖次数:`);

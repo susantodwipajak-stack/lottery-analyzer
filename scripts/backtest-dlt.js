@@ -158,16 +158,15 @@ function randomPick(max, count) {
     return result.sort((a, b) => a - b);
 }
 
+// 官方7级中奖判定 (lottery.gov.cn 2019年版)
 function calcHitLevel(fHits, bHits) {
     if (fHits === 5 && bHits === 2) return '一等奖';
     if (fHits === 5 && bHits === 1) return '二等奖';
-    if (fHits === 5 && bHits === 0) return '三等奖';
-    if (fHits === 4 && bHits === 2) return '四等奖';
-    if (fHits === 4 && bHits === 1) return '五等奖';
-    if (fHits === 3 && bHits === 2) return '六等奖';
-    if (fHits === 4 && bHits === 0) return '七等奖';
-    if ((fHits === 3 && bHits === 1) || (fHits === 2 && bHits === 2)) return '八等奖';
-    if ((fHits === 3 && bHits === 0) || (fHits === 2 && bHits === 1) || (fHits === 1 && bHits === 2) || (fHits === 0 && bHits === 2)) return '九等奖';
+    if ((fHits === 5 && bHits === 0) || (fHits === 4 && bHits === 2)) return '三等奖';
+    if (fHits === 4 && bHits === 1) return '四等奖';
+    if ((fHits === 4 && bHits === 0) || (fHits === 3 && bHits === 2)) return '五等奖';
+    if ((fHits === 3 && bHits === 1) || (fHits === 2 && bHits === 2)) return '六等奖';
+    if ((fHits === 3 && bHits === 0) || (fHits === 2 && bHits === 1) || (fHits === 1 && bHits === 2) || (fHits === 0 && bHits === 2)) return '七等奖';
     return '未中奖';
 }
 
@@ -376,7 +375,7 @@ function main() {
     console.log('🎰 奖级分布');
     console.log('═══════════════════════════════════════════════════════════════\n');
 
-    const allLevels = ['一等奖', '二等奖', '三等奖', '四等奖', '五等奖', '六等奖', '七等奖', '八等奖', '九等奖'];
+    const allLevels = ['一等奖', '二等奖', '三等奖', '四等奖', '五等奖', '六等奖', '七等奖'];
     STRATEGIES.forEach(strat => {
         const st = stats[strat.id];
         const levelStr = allLevels

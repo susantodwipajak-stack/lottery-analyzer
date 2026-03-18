@@ -197,11 +197,5 @@ function setupCanvas(canvas, height) {
 }
 
 // ---- Tab Switching ----
-$$('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    $$('.tab-btn').forEach(b => b.classList.remove('active'));
-    $$('.tab-content').forEach(c => c.classList.remove('active'));
-    btn.classList.add('active');
-    $('#tab-' + btn.dataset.tab).classList.add('active');
-  });
-});
+// NOTE: Tab switching is handled in main.js with AOS refresh support.
+// Do NOT add tab-btn listeners here to avoid double-firing.

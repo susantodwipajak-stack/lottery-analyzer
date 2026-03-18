@@ -281,6 +281,10 @@ function calcDLTBets() {
   const baseCost = betCount * 2 * multiple;
   const addOnCost = addOn ? betCount * 1 * multiple : 0;
   const totalCost = baseCost + addOnCost;
+  // 官方规则第十条: 单张基本投注最大¥20,000, 基本+追加最大¥30,000
+  let limitWarning = '';
+  if (baseCost > 20000) limitWarning = `⚠️ 基本投注¥${baseCost.toLocaleString()}超出单张限额¥20,000`;
+  if (totalCost > 30000) limitWarning = `⚠️ 合计¥${totalCost.toLocaleString()}超出单张限额¥30,000`;
   const isSingle = front.length === 5 && back.length === 2;
   const betType = front.length > 5 && back.length > 2 ? '双区复式' :
                   front.length > 5 ? '前区复式' :
@@ -304,9 +308,11 @@ function calcDLTBets() {
     ${addOn ? `<div class="result-item"><div class="label">追加投注</div><div class="value cyan">¥${addOnCost.toLocaleString()}</div></div>` : ''}
     <div class="result-item"><div class="label">合计金额</div><div class="value gold">¥${totalCost.toLocaleString()}</div></div>
     <div class="result-item"><div class="label">一等奖概率</div><div class="value positive">1/${Math.round(totalCombs / betCount).toLocaleString()}</div></div>
-    <div class="result-item"><div class="label">固定奖期望回报</div><div class="value ${parseFloat(returnRate) > 50 ? 'positive' : 'negative'}">${returnRate}%</div></div>`;
+    <div class="result-item"><div class="label">固定奖期望回报</div><div class="value ${parseFloat(returnRate) > 50 ? 'positive' : 'negative'}">${returnRate}%</div></div>
+    ${limitWarning ? `<div class="result-item" style="grid-column:1/-1"><div class="value negative" style="font-size:0.8rem">${limitWarning}</div></div>` : ''}`;
   $('#dlt-calc-result').classList.remove('hidden');
-  showToast('投注计算完成', 'success');
+  if (limitWarning) showToast(limitWarning, 'warning');
+  else showToast('投注计算完成', 'success');
 }
 
 // ---- Period-aware analysis helpers ----

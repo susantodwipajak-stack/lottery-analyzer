@@ -1,36 +1,59 @@
-﻿// =============================================
-// SECTION 3: 中奖查询
+// =============================================
+// SECTION 3: 中奖查询 (官方7级 · lottery.gov.cn)
 // =============================================
 function checkDLTPrize() {
   const parse = str => str.trim().split(/[\s,，]+/).map(Number).filter(n => !isNaN(n));
   const winFront = parse($('#win-front').value), winBack = parse($('#win-back').value);
   const myFront = parse($('#my-front').value), myBack = parse($('#my-back').value);
   const isExtra = $('#is-extra').value === '1';
+  const poolHigh = $('#pool-bracket')?.value === 'high'; // 奖池≥8亿
   if (winFront.length !== 5 || winBack.length !== 2) { showToast('开奖号码格式错误：前区5个，后区2个', 'warning'); return; }
   if (myFront.length < 5 || myBack.length < 2) { showToast('你的号码格式错误：前区至少5个，后区至少2个', 'warning'); return; }
   const matchF = myFront.filter(n => winFront.includes(n)).length;
   const matchB = myBack.filter(n => winBack.includes(n)).length;
-  let level = '未中奖', prize = 0, extraPrize = 0;
-  if (matchF === 5 && matchB === 2) { level = '🥇 一等奖'; prize = 5000000; extraPrize = 8000000; }
-  else if (matchF === 5 && matchB === 1) { level = '🥈 二等奖'; prize = 100000; extraPrize = 800000; }
-  else if (matchF === 5 && matchB === 0) { level = '🥉 三等奖'; prize = 10000; }
-  else if (matchF === 4 && matchB === 2) { level = '四等奖'; prize = 3000; }
-  else if (matchF === 4 && matchB === 1) { level = '五等奖'; prize = 300; }
-  else if (matchF === 3 && matchB === 2) { level = '六等奖'; prize = 200; }
-  else if (matchF === 4 && matchB === 0) { level = '七等奖'; prize = 100; }
-  else if ((matchF === 3 && matchB === 1) || (matchF === 2 && matchB === 2)) { level = '八等奖'; prize = 15; }
-  else if ((matchF === 3 && matchB === 0) || (matchF === 2 && matchB === 1) || (matchF === 1 && matchB === 2) || (matchF === 0 && matchB === 2)) { level = '九等奖'; prize = 5; }
-  const finalPrize = isExtra && extraPrize > 0 ? prize + extraPrize : prize;
+
+  // 官方7级中奖规则 (2019年版)
+  // 固定奖分两档: 奖池<8亿 / ≥8亿
+  const PRIZE_TABLE = [
+    { level: '🥇 一等奖', match: [5,2], low: '浮动(最高500万)', high: '浮动(最高500万)', value: 5000000, floating: true },
+    { level: '🥈 二等奖', match: [5,1], low: '浮动', high: '浮动', value: 100000, floating: true },
+    { level: '🥉 三等奖', match: [[5,0],[4,2]], low: 5000, high: 6666 },
+    { level: '四等奖', match: [4,1], low: 300, high: 380 },
+    { level: '五等奖', match: [[4,0],[3,2]], low: 150, high: 200 },
+    { level: '六等奖', match: [[3,1],[2,2]], low: 15, high: 18 },
+    { level: '七等奖', match: [[3,0],[2,1],[1,2],[0,2]], low: 5, high: 7 }
+  ];
+
+  let level = '未中奖', prize = 0, isFloating = false;
+  for (const tier of PRIZE_TABLE) {
+    const matches = Array.isArray(tier.match[0]) ? tier.match : [tier.match];
+    if (matches.some(([f, b]) => matchF === f && matchB === b)) {
+      level = tier.level;
+      isFloating = !!tier.floating;
+      prize = isFloating ? tier.value : (poolHigh ? tier.high : tier.low);
+      break;
+    }
+  }
+
+  // 追加投注: 仅浮动奖(一/二等奖)参与, 追加奖金 = 基本奖金 × 80%
+  const extraPrize = (isExtra && isFloating) ? Math.round(prize * 0.8) : 0;
+  const finalPrize = prize + extraPrize;
   const isWin = level !== '未中奖';
+  const poolLabel = poolHigh ? '奖池≥8亿' : '奖池<8亿';
+
   $('#prize-detail').innerHTML = `<div class="result-grid">
     <div class="result-item"><div class="label">前区匹配</div><div class="value ${isWin ? 'positive' : 'negative'}">${matchF} / 5</div></div>
     <div class="result-item"><div class="label">后区匹配</div><div class="value ${isWin ? 'positive' : 'negative'}">${matchB} / 2</div></div>
     <div class="result-item"><div class="label">中奖等级</div><div class="value ${isWin ? 'gold' : 'negative'}">${level}</div></div>
-    <div class="result-item"><div class="label">奖金</div><div class="value ${isWin ? 'gold' : 'negative'}">¥${finalPrize.toLocaleString()}</div></div></div>
+    <div class="result-item"><div class="label">基本奖金</div><div class="value ${isWin ? 'gold' : 'negative'}">¥${prize.toLocaleString()}${isFloating ? '(浮动)' : ''}</div></div>
+    ${isExtra && isFloating ? `<div class="result-item"><div class="label">追加奖金(80%)</div><div class="value cyan">¥${extraPrize.toLocaleString()}</div></div>` : ''}
+    ${isExtra && isFloating ? `<div class="result-item"><div class="label">合计奖金</div><div class="value gold">¥${finalPrize.toLocaleString()}</div></div>` : ''}
+    ${!isFloating && isWin ? `<div class="result-item"><div class="label">奖池档位</div><div class="value neutral">${poolLabel}</div></div>` : ''}</div>
     <div style="margin-top:1rem;padding:0.8rem;background:rgba(10,14,26,0.5);border-radius:var(--radius-sm);font-size:0.8rem;color:var(--text-secondary)"><strong>匹配详情：</strong>
     前区 [${myFront.map(n => winFront.includes(n) ? `<span style="color:var(--green);font-weight:700">${String(n).padStart(2, '0')}</span>` : `<span style="color:var(--text-muted)">${String(n).padStart(2, '0')}</span>`).join(' ')}]
     后区 [${myBack.map(n => winBack.includes(n) ? `<span style="color:var(--green);font-weight:700">${String(n).padStart(2, '0')}</span>` : `<span style="color:var(--text-muted)">${String(n).padStart(2, '0')}</span>`).join(' ')}]
-    ${isExtra ? ' <span style="color:var(--yellow)">（追加投注）</span>' : ''}</div>`;
+    ${isExtra ? ' <span style="color:var(--yellow)">（追加投注）</span>' : ''}
+    ${!isFloating && isWin ? ` <span style="color:var(--cyan)">（${poolLabel}）</span>` : ''}</div>`;
   $('#prize-result').classList.remove('hidden');
   showToast(isWin ? `恭喜中奖：${level}` : '很遗憾，未中奖', isWin ? 'success' : 'info');
 }
