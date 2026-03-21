@@ -874,43 +874,47 @@ async function compareFbPredictions() {
   setButtonLoading(btn, true);
   showToast('正在获取比赛结果...', 'info');
 
-  // Try to fetch results
-  let results = null;
-  try {
-    const resp = await fetch('https://webapi.sporttery.cn/gateway/jc/football/getMatchResultV1.qry?channel=c923-tysw-lq-dwj', { signal: AbortSignal.timeout(8000) });
-    if (resp.ok) {
-      const json = await resp.json();
-      if (json?.value?.matchResult) {
-        results = {};
-        json.value.matchResult.forEach(r => {
-          const key = (r.homeTeamAbbName || r.homeTeamName) + 'vs' + (r.awayTeamAbbName || r.awayTeamName);
-          const homeGoal = parseInt(r.homeGoal) || 0, awayGoal = parseInt(r.awayGoal) || 0;
-          results[key] = homeGoal > awayGoal ? '胜' : homeGoal === awayGoal ? '平' : '负';
-        });
-      }
-    }
-  } catch { }
-
-  // Also try local data
-  if (!results) {
+  // Use 14场胜负游戏 draw results from cache or fetch fresh
+  let drawResult = null;
+  if (_drawResultsCache?.length) {
+    drawResult = _drawResultsCache[0]; // Most recent draw period
+  } else {
     try {
-      const resp = await fetch('data/football-results.json', { signal: AbortSignal.timeout(5000) });
-      if (resp.ok) results = await resp.json();
+      const resp = await fetch('https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=90&provinceId=0&pageSize=1&isVerify=1&pageNo=1', {
+        signal: AbortSignal.timeout(8000),
+        headers: { 'Referer': 'https://www.lottery.gov.cn/' }
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json?.value?.list?.length) drawResult = json.value.list[0];
+      }
     } catch { }
   }
 
-  if (!results || Object.keys(results).length === 0) {
-    // Use sample results for demo
+  // Build position-based results from draw data
+  let results = null;
+  if (drawResult?.lotteryDrawResult) {
+    const resultCodes = drawResult.lotteryDrawResult.split(' ');
+    const resultMap = { '3': '胜', '1': '平', '0': '负' };
     results = {};
-    const latest = preds[0];
-    if (latest?.matches) {
-      const sampleResults = ['胜', '平', '胜', '负', '胜', '胜', '平', '胜'];
-      latest.matches.forEach((m, i) => {
-        const key = m.team.replace(/\s/g, '');
-        results[key] = sampleResults[i % sampleResults.length];
+    if (drawResult.matchList?.length) {
+      drawResult.matchList.forEach((m, i) => {
+        const key = (m.masterTeamName || '').trim() + 'vs' + (m.guestTeamName || '').trim();
+        results[key] = resultMap[m.result || resultCodes[i]] || '平';
+        results['_pos' + i] = resultMap[m.result || resultCodes[i]] || '平';
+      });
+    } else {
+      resultCodes.forEach((code, i) => {
+        results['_pos' + i] = resultMap[code] || '平';
       });
     }
-    showToast('使用模拟结果进行对比演示', 'info');
+    showToast(`已获取第${drawResult.lotteryDrawNum}期开奖结果`, 'success');
+  }
+
+  if (!results || Object.keys(results).length === 0) {
+    setButtonLoading(btn, false);
+    showToast('暂无可用的开奖结果数据', 'warning');
+    return;
   }
 
   // Compare latest uncompared prediction
@@ -924,13 +928,17 @@ async function compareFbPredictions() {
     Object.entries(pred.strategies).forEach(([stratName, picks]) => {
       let correct = 0, total = picks.length;
       picks.forEach((p, i) => {
-        const teamKey = p.team.replace(/\s/g, '');
-        // Find matching result
-        let actualResult = null;
-        Object.keys(results).forEach(k => { if (teamKey.includes(k.substring(0, 3)) || k.includes(teamKey.substring(0, 3))) actualResult = results[k]; });
-        if (!actualResult) { // random fallback for demo
-          actualResult = ['胜', '平', '负'][Math.floor(Math.random() * 3)];
+        // First try position-based matching (most reliable for 14场)
+        let actualResult = results['_pos' + i];
+        // Fallback: team name matching
+        if (!actualResult) {
+          const teamKey = p.team.replace(/\s/g, '');
+          Object.keys(results).forEach(k => {
+            if (k.startsWith('_pos')) return; // skip position keys
+            if (teamKey.includes(k.substring(0, 3)) || k.includes(teamKey.substring(0, 3))) actualResult = results[k];
+          });
         }
+        if (!actualResult) return; // skip if no matching result
         p.actual = actualResult;
         p.hit = p.pick === actualResult;
         if (p.hit) correct++;
