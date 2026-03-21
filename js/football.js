@@ -341,6 +341,130 @@ async function fetchFootballMatches() {
   }
   if (!matches?.length) { status.innerHTML = '<span style="color:var(--orange)">⚠️ 无法获取实时赛事，已载入示例</span>'; loadSampleMatches(); setButtonLoading(btn, false); return; }
   renderMatchList(matches); setButtonLoading(btn, false); showToast(`获取 ${matches.length} 场赛事`, 'success');
+  // Also fetch draw results
+  fetchDrawResults();
+}
+
+// =============================================
+// 开奖结果 (Draw Results)
+// =============================================
+let _drawResultsCache = null;
+
+async function fetchDrawResults() {
+  const container = $('#draw-results-container');
+  if (!container) return;
+  try {
+    const resp = await fetch('https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=90&provinceId=0&pageSize=5&isVerify=1&pageNo=1', {
+      signal: AbortSignal.timeout(10000),
+      headers: { 'Referer': 'https://www.lottery.gov.cn/' }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data?.value?.list?.length) throw new Error('No data');
+    _drawResultsCache = data.value.list;
+    renderDrawResults(_drawResultsCache[0]); // Show latest
+    renderDrawPeriodChips(_drawResultsCache);
+  } catch {
+    container.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);padding:0.5rem;">⚠️ 开奖数据暂时无法获取</div>';
+  }
+}
+
+function renderDrawPeriodChips(list) {
+  const container = $('#draw-period-chips');
+  if (!container) return;
+  container.innerHTML = list.map((item, i) =>
+    `<span class="cz-period-chip ${i === 0 ? 'active' : ''}" style="cursor:pointer;padding:0.2rem 0.6rem;font-size:0.72rem;border-radius:4px;border:1px solid ${i === 0 ? 'var(--cyan)' : 'var(--border)'};color:${i === 0 ? 'var(--cyan)' : 'var(--text-muted)'};background:${i === 0 ? 'rgba(0,188,212,0.1)' : 'transparent'}" onclick="selectDrawPeriod(${i})">${item.lotteryDrawNum} 期</span>`
+  ).join('');
+}
+
+function selectDrawPeriod(idx) {
+  if (!_drawResultsCache?.[idx]) return;
+  renderDrawResults(_drawResultsCache[idx]);
+  // Update chip styles
+  const chips = document.querySelectorAll('#draw-period-chips .cz-period-chip');
+  chips.forEach((c, i) => {
+    c.style.borderColor = i === idx ? 'var(--cyan)' : 'var(--border)';
+    c.style.color = i === idx ? 'var(--cyan)' : 'var(--text-muted)';
+    c.style.background = i === idx ? 'rgba(0,188,212,0.1)' : 'transparent';
+  });
+}
+
+function renderDrawResults(item) {
+  const container = $('#draw-results-container');
+  if (!container || !item) return;
+  const results = (item.lotteryDrawResult || '').split(' ');
+  const resultLabels = { '3': '胜', '1': '平', '0': '负' };
+  const resultColors = { '3': '#e74c3c', '1': '#f39c12', '0': '#00bcd4' };
+
+  let matchesHtml = '';
+  if (item.matchList?.length) {
+    matchesHtml = `<div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+        <thead>
+          <tr style="color:var(--text-muted);border-bottom:1px solid var(--border);">
+            <th style="padding:0.3rem;text-align:center;width:2rem;">场次</th>
+            <th style="padding:0.3rem;text-align:center;width:3rem;">联赛</th>
+            <th style="padding:0.3rem;text-align:center;">主队 VS 客队</th>
+            <th style="padding:0.3rem;text-align:center;width:3.5rem;">比分</th>
+            <th style="padding:0.3rem;text-align:center;width:2.5rem;">赛果</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${item.matchList.map((m, i) => {
+            const r = m.result || results[i] || '-';
+            const lbl = resultLabels[r] || '-';
+            const clr = resultColors[r] || 'var(--text-muted)';
+            return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+              <td style="padding:0.3rem;text-align:center;color:var(--text-muted);">${m.matchNum || i + 1}</td>
+              <td style="padding:0.3rem;text-align:center;color:var(--text-secondary);">${m.matchName || ''}</td>
+              <td style="padding:0.3rem;text-align:center;"><span style="color:var(--text-primary);font-weight:600;">${m.masterTeamName || ''}</span> <span style="color:var(--text-muted);font-size:0.65rem;">VS</span> <span style="color:var(--text-primary);">${m.guestTeamName || ''}</span></td>
+              <td style="padding:0.3rem;text-align:center;font-weight:600;color:var(--text-secondary);">${m.czScore || '-'}</td>
+              <td style="padding:0.3rem;text-align:center;"><span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${clr};color:#fff;font-weight:700;font-size:0.7rem;">${r}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  } else if (results.length === 14) {
+    // No matchList — just show result balls
+    matchesHtml = `<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin:0.5rem 0;">
+      ${results.map((r, i) => {
+        const clr = resultColors[r] || '#666';
+        return `<div style="text-align:center;">
+          <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:0.15rem;">${i + 1}</div>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${clr};color:#fff;font-weight:700;font-size:0.75rem;">${r}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // Prize info
+  let prizeHtml = '';
+  if (item.prizeLevelList?.length) {
+    prizeHtml = `<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">
+      ${item.prizeLevelList.map(p =>
+        `<div style="font-size:0.72rem;"><span style="color:var(--text-muted);">🏅 ${p.prizeLevel}</span> <span style="color:var(--gold);font-weight:600;">${p.stakeCount}</span><span style="color:var(--text-muted);">注</span> <span style="color:var(--green);font-weight:600;">¥${p.stakeAmount}</span></div>`
+      ).join('')}
+    </div>`;
+  }
+  // R9 prize
+  if (item.prizeLevelListRj?.length) {
+    prizeHtml += `<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.3rem;">
+      ${item.prizeLevelListRj.map(p =>
+        `<div style="font-size:0.72rem;"><span style="color:var(--text-muted);">🏅 ${p.prizeLevel}</span> <span style="color:var(--gold);font-weight:600;">${p.stakeCount}</span><span style="color:var(--text-muted);">注</span> <span style="color:var(--green);font-weight:600;">¥${p.stakeAmount}</span></div>`
+      ).join('')}
+    </div>`;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+      <span style="font-size:0.8rem;font-weight:600;">第 ${item.lotteryDrawNum} 期</span>
+      <span style="font-size:0.72rem;color:var(--text-muted);">开奖日期: ${item.lotteryDrawTime || item.estimateDrawTime || '-'}</span>
+    </div>
+    ${matchesHtml}
+    ${prizeHtml}
+    ${item.totalSaleAmount ? `<div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.3rem;">💰 本期销量: ¥${item.totalSaleAmount}</div>` : ''}
+  `;
 }
 function renderPeriodChips(termList) {
   const container = $('#cz-period-chips'); if (!container) return;
@@ -996,4 +1120,6 @@ if (betMinus) betMinus.addEventListener('click', () => { const v = Math.max(1, (
 if (betPlus) betPlus.addEventListener('click', () => { const v = Math.min(99, (parseInt(betMulti.value) || 1) + 1); betMulti.value = v; updateBetBar(); });
 if (betMulti) betMulti.addEventListener('change', updateBetBar);
 initFbPredictionUI();
+// Auto-load draw results on page init
+fetchDrawResults();
 
