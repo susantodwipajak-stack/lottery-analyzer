@@ -269,17 +269,20 @@ async function fetchFootballMatches() {
     {
       name: '14场胜负游戏', url: 'https://webapi.sporttery.cn/gateway/lottery/getFootBallMatchV1.qry?param=90,0&sellStatus=0&termLimits=10',
       extract: json => {
-        if (!json?.value?.matchInfoList) return null;
-        // Show period chips
-        if (json.value.termList) renderPeriodChips(json.value.termList);
-        return json.value.matchInfoList.map((m, i) => ({
-          league: m.leagueAbbName || m.leagueName || '未知',
-          home: m.homeTeamAbbName || m.homeTeamAllName || '主队',
-          away: m.awayTeamAbbName || m.awayTeamAllName || '客队',
-          date: m.matchDate || '',
-          oddsW: parseFloat(m.spWin) || 0,
-          oddsD: parseFloat(m.spDraw) || 0,
-          oddsL: parseFloat(m.spLose) || 0
+        if (!json?.value?.sfcMatch?.matchList) return null;
+        const sfc = json.value.sfcMatch;
+        // Show period chips and deadline
+        if (json.value.sfclist) renderPeriodChips(json.value.sfclist.map(n => ({ termNo: n })));
+        const deadline = $('#cz-deadline');
+        if (deadline && sfc.lotterySaleEndtime) deadline.textContent = '投注截止时间：' + sfc.lotterySaleEndtime;
+        return sfc.matchList.map(m => ({
+          league: m.matchName || '未知',
+          home: m.masterTeamName || m.masterTeamAllName || '主队',
+          away: m.guestTeamName || m.guestTeamAllName || '客队',
+          date: m.startTime || '',
+          oddsW: parseFloat(m.h) || 0,
+          oddsD: parseFloat(m.d) || 0,
+          oddsL: parseFloat(m.a) || 0
         }));
       }
     },
