@@ -267,6 +267,23 @@ async function fetchFootballMatches() {
   status.innerHTML = '<span style="color:var(--cyan)">⏳ 正在获取赛事数据...</span>';
   const apis = [
     {
+      name: '14场胜负游戏', url: 'https://webapi.sporttery.cn/gateway/lottery/getFootBallMatchV1.qry?param=90,0&sellStatus=0&termLimits=10',
+      extract: json => {
+        if (!json?.value?.matchInfoList) return null;
+        // Show period chips
+        if (json.value.termList) renderPeriodChips(json.value.termList);
+        return json.value.matchInfoList.map((m, i) => ({
+          league: m.leagueAbbName || m.leagueName || '未知',
+          home: m.homeTeamAbbName || m.homeTeamAllName || '主队',
+          away: m.awayTeamAbbName || m.awayTeamAllName || '客队',
+          date: m.matchDate || '',
+          oddsW: parseFloat(m.spWin) || 0,
+          oddsD: parseFloat(m.spDraw) || 0,
+          oddsL: parseFloat(m.spLose) || 0
+        }));
+      }
+    },
+    {
       name: '预取数据', url: 'data/matches.json',
       extract: json => {
         if (!json?.matches?.length) return null;
@@ -279,7 +296,7 @@ async function fetchFootballMatches() {
       }
     },
     {
-      name: '体彩竞彩(直连)', url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
+      name: '竞彩足球(备用)', url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
       extract: json => {
         if (!json?.value?.matchInfoList) return null;
         const matches = [];
@@ -291,9 +308,9 @@ async function fetchFootballMatches() {
               home: m.homeTeamAbbName || m.homeTeamAllName || '主队',
               away: m.awayTeamAbbName || m.awayTeamAllName || '客队',
               date: m.matchDate || group.businessDate || '--',
-              oddsW: parseFloat(m.had?.a) || 0,
+              oddsW: parseFloat(m.had?.h) || 0,
               oddsD: parseFloat(m.had?.d) || 0,
-              oddsL: parseFloat(m.had?.h) || 0
+              oddsL: parseFloat(m.had?.a) || 0
             });
           }
         }
@@ -303,7 +320,21 @@ async function fetchFootballMatches() {
   ];
   let matches = null;
   for (const api of apis) {
-    try { const resp = await fetch(api.url, { signal: AbortSignal.timeout(10000) }); if (!resp.ok) continue; const json = await resp.json(); matches = api.extract(json); if (matches?.length > 0) { status.innerHTML = `<span style="color:var(--green)">✅ 通过${api.name}获取 ${matches.length} 场赛事</span>`; break; } } catch { continue; }
+    try {
+      const fetchOpts = { signal: AbortSignal.timeout(10000) };
+      // Add Referer header for sporttery.cn APIs
+      if (api.url.includes('sporttery.cn')) {
+        fetchOpts.headers = { 'Referer': 'https://www.lottery.gov.cn/' };
+      }
+      const resp = await fetch(api.url, fetchOpts);
+      if (!resp.ok) continue;
+      const json = await resp.json();
+      matches = api.extract(json);
+      if (matches?.length > 0) {
+        status.innerHTML = `<span style="color:var(--green)">✅ 通过${api.name}获取 ${matches.length} 场赛事</span>`;
+        break;
+      }
+    } catch { continue; }
   }
   if (!matches?.length) { status.innerHTML = '<span style="color:var(--orange)">⚠️ 无法获取实时赛事，已载入示例</span>'; loadSampleMatches(); setButtonLoading(btn, false); return; }
   renderMatchList(matches); setButtonLoading(btn, false); showToast(`获取 ${matches.length} 场赛事`, 'success');

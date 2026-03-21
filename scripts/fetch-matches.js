@@ -25,32 +25,6 @@ const HEADERS = {
 
 const SOURCES = [
     {
-        name: '竞彩足球(HAD)',
-        url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
-        extract: (json) => {
-            if (!json?.value?.matchInfoList) return null;
-            const matches = [];
-            for (const group of json.value.matchInfoList) {
-                const subs = group.subMatchList || [group];
-                for (const m of subs) {
-                    matches.push({
-                        matchNum: m.matchNum || m.matchId || '',
-                        league: m.leagueAbbName || m.leagueName || '未知',
-                        home: m.homeTeamAbbName || m.homeTeamAllName || '主队',
-                        away: m.awayTeamAbbName || m.awayTeamAllName || '客队',
-                        date: m.matchDate || group.businessDate || '',
-                        time: m.matchTime || '',
-                        oddsW: parseFloat(m.had?.a) || 0,
-                        oddsD: parseFloat(m.had?.d) || 0,
-                        oddsL: parseFloat(m.had?.h) || 0,
-                        status: m.sellStatus || 0
-                    });
-                }
-            }
-            return matches;
-        }
-    },
-    {
         name: '传统足彩(胜负游戏)',
         url: 'https://webapi.sporttery.cn/gateway/lottery/getFootBallMatchV1.qry?param=90,0&sellStatus=0&termLimits=10',
         extract: (json) => {
@@ -67,6 +41,32 @@ const SOURCES = [
                 oddsL: parseFloat(m.spLose) || 0,
                 status: 0
             }));
+        }
+    },
+    {
+        name: '竞彩足球(HAD)',
+        url: 'https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=HAD,HHAD&channel=c923-tysw-lq-dwj',
+        extract: (json) => {
+            if (!json?.value?.matchInfoList) return null;
+            const matches = [];
+            for (const group of json.value.matchInfoList) {
+                const subs = group.subMatchList || [group];
+                for (const m of subs) {
+                    matches.push({
+                        matchNum: m.matchNum || m.matchId || '',
+                        league: m.leagueAbbName || m.leagueName || '未知',
+                        home: m.homeTeamAbbName || m.homeTeamAllName || '主队',
+                        away: m.awayTeamAbbName || m.awayTeamAllName || '客队',
+                        date: m.matchDate || group.businessDate || '',
+                        time: m.matchTime || '',
+                        oddsW: parseFloat(m.had?.h) || 0,
+                        oddsD: parseFloat(m.had?.d) || 0,
+                        oddsL: parseFloat(m.had?.a) || 0,
+                        status: m.sellStatus || 0
+                    });
+                }
+            }
+            return matches;
         }
     }
 ];
