@@ -270,73 +270,50 @@
       </div>
     </div>
 
-    <!-- ❷ Prediction Archive System (NEW) -->
-    <div class="card"
-      style="border:1px solid rgba(138,43,226,0.3);background:linear-gradient(135deg,rgba(20,15,50,0.9),rgba(40,20,60,0.3));">
-      <div class="card-title"><span class="icon">🔮</span> 预测存档系统
-        <span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);margin-left:0.5rem;">每期自动预测 → 存档 → 对比 →
-          优化</span>
+    <!-- ❷ AI Prediction Control Panel -->
+    <div class="card" style="border:1px solid rgba(0, 255, 200, 0.3);background:linear-gradient(135deg,rgba(10,30,40,0.95),rgba(5,20,15,0.4));text-align:center;padding:1.5rem 1rem;">
+      <h3 style="color:#0fc;font-size:1.1rem;margin-top:0;margin-bottom:0.5rem;">🔮 大乐透 AI 智能预测引擎</h3>
+      <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem;">集成马尔可夫链、泊松分布等5大核心算法，并具备历史回溯自我进化能力。</p>
+      
+      <div style="display:flex;justify-content:center;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-generate-pred" style="font-size:1rem;padding:0.6rem 2rem;box-shadow:0 0 15px rgba(0,255,200,0.3);border-radius:30px;">⚡ 一键生成 第 <span id="pred-target-issue">--</span> 期预测</button>
       </div>
-      <div
-        style="padding:0.75rem;background:rgba(10,14,26,0.5);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:0.75rem;">
-        <div
-          style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
-          <span style="font-size:0.85rem;font-weight:600;color:var(--cyan);">🎯 下期预测（<span
-              id="pred-target-issue">--</span> 期）</span>
-          <div class="flex gap-1">
-            <button class="btn btn-primary btn-sm" id="btn-generate-pred">🔮 生成预测</button>
-            <button class="btn btn-secondary btn-sm" id="btn-compare-pred">🔍 对比开奖</button>
-          </div>
-        </div>
-        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem;padding:0.5rem;background:rgba(155,89,182,0.08);border:1px solid rgba(155,89,182,0.2);border-radius:var(--radius-sm);">
-          <span style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">复式规格：</span>
-          <label style="font-size:0.75rem;color:var(--text-secondary);">前区
-            <select id="comp-front-size" style="padding:0.2rem 0.4rem;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;" onchange="updateCompCostPreview()">
-              <option value="6">6个</option>
-              <option value="7">7个</option>
-              <option value="8" selected>8个</option>
-              <option value="9">9个</option>
-              <option value="10">10个</option>
-              <option value="12">12个</option>
-            </select>
-          </label>
-          <label style="font-size:0.75rem;color:var(--text-secondary);">后区
-            <select id="comp-back-size" style="padding:0.2rem 0.4rem;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;" onchange="updateCompCostPreview()">
-              <option value="2">2个</option>
-              <option value="3">3个</option>
-              <option value="4" selected>4个</option>
-              <option value="5">5个</option>
-              <option value="6">6个</option>
-            </select>
-          </label>
-          <span id="comp-cost-preview" style="font-size:0.75rem;color:var(--gold);font-weight:600;">336注 ¥672</span>
-        </div>
-        <div id="prediction-sets">
-          <p style="font-size:0.8rem;color:var(--text-muted)">点击「生成预测」为下一期生成 5 组号码</p>
-        </div>
-      </div>
-      <div style="margin-bottom:0.75rem;">
-        <div class="card-title" style="font-size:0.85rem;cursor:pointer;" id="toggle-pred-history">
-          📋 历史预测记录 <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400">（点击展开）</span>
-          <span id="pred-history-count" class="value-badge value" style="margin-left:0.5rem;">0 期</span>
-        </div>
-        <div id="pred-history-body" class="hidden">
-          <div id="pred-history-list" style="max-height:400px;overflow-y:auto;"></div>
-          <div class="flex gap-1 mt-1">
-            <button class="btn btn-ghost btn-sm" id="btn-export-pred">💾 导出预测</button>
-            <button class="btn btn-ghost btn-sm" id="btn-clear-pred" style="color:var(--red)">🗑️ 清空预测</button>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="card-title" style="font-size:0.85rem;cursor:pointer;" id="toggle-perf-panel">
-          📊 策略表现 <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400">（点击展开）</span>
-        </div>
-        <div id="perf-panel-body" class="hidden">
-          <div id="strategy-performance"></div>
-        </div>
+
+      <div style="display:inline-flex;gap:0.75rem;align-items:center;background:rgba(0,0,0,0.3);padding:0.4rem 1rem;border-radius:20px;border:1px solid rgba(255,255,255,0.1);flex-wrap:wrap;justify-content:center;">
+        <span style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">大复式规格配置：</span>
+        <label style="font-size:0.75rem;color:var(--text-secondary);">前区
+          <select id="comp-front-size" style="padding:0.1rem 0.3rem;background:var(--bg-input);border:none;border-radius:4px;color:var(--text-primary);" onchange="updateCompCostPreview()">
+            <option value="6">6个</option>
+            <option value="7">7个</option>
+            <option value="8" selected>8个</option>
+            <option value="9">9个</option>
+            <option value="10">10个</option>
+            <option value="12">12个</option>
+          </select>
+        </label>
+        <label style="font-size:0.75rem;color:var(--text-secondary);">后区
+          <select id="comp-back-size" style="padding:0.1rem 0.3rem;background:var(--bg-input);border:none;border-radius:4px;color:var(--text-primary);" onchange="updateCompCostPreview()">
+            <option value="2">2个</option>
+            <option value="3">3个</option>
+            <option value="4" selected>4个</option>
+            <option value="5">5个</option>
+            <option value="6">6个</option>
+          </select>
+        </label>
+        <span id="comp-cost-preview" style="font-size:0.75rem;color:var(--gold);font-weight:600;">336注 ¥672</span>
       </div>
     </div>
+
+    <!-- ❸ Current Period Workflow Report -->
+    <div id="current-prediction-report" style="margin-top:1.5rem;">
+      <div style="font-size:1rem;font-weight:600;color:var(--text-primary);margin-bottom:0.75rem;border-left:3px solid var(--cyan);padding-left:0.5rem;display:none;" id="current-report-title">📌 当期预测战报</div>
+      
+      <div class="card" id="core-algorithms-card">
+        <div class="card-title"><span class="icon">🤖</span> AI 核心算法演算结果</div>
+        <div id="prediction-sets">
+          <p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:1rem 0;">点击上方「一键生成」获取预测数据</p>
+        </div>
+      </div>
 
     <!-- ❸ Next Draw Recommendation -->
     <div class="card"
@@ -396,6 +373,40 @@
       <div style="padding:0.5rem;background:rgba(10,14,26,0.5);border-radius:var(--radius-sm);font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem;">
         <strong style="color:#0fc;">📐 数学原理：</strong>
         5算法(马尔可夫+泊松+贝叶斯+蒙特卡洛+共现亲和)评分 → 排除低概率号 → AC值/和值/奇偶/跨度过滤 → 贪心对覆盖算法生成最优组合。
+      </div>
+    </div>
+    </div> <!-- End Current Prediction Report -->
+
+    <!-- ❹ Archive and Review Center -->
+    <div class="card" style="margin-top:1.5rem;border:1px solid rgba(155,89,182,0.3);background:linear-gradient(135deg,rgba(20,15,50,0.9),rgba(40,20,60,0.3));">
+      <div class="card-title flex justify-between" style="align-items:center;flex-wrap:wrap;gap:0.5rem;">
+        <span><span class="icon">📁</span> 预测历史与复盘中心
+          <span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);margin-left:0.5rem;">自动对比 → 算法净化权重</span>
+        </span>
+        <button class="btn btn-secondary btn-sm" id="btn-compare-pred" style="border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(241,196,15,0.2);">🔄 一键全自动对比历史开奖</button>
+      </div>
+      
+      <div style="margin-bottom:0.75rem;margin-top:1rem;">
+        <div class="card-title" style="font-size:0.85rem;cursor:pointer;" id="toggle-pred-history">
+          📋 历史预测报告库 <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400">（点击展开/收起）</span>
+          <span id="pred-history-count" class="value-badge value" style="margin-left:0.5rem;">0 期</span>
+        </div>
+        <div id="pred-history-body" class="hidden" style="background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:var(--radius-sm);">
+          <div id="pred-history-list" style="max-height:400px;overflow-y:auto;"></div>
+          <div class="flex gap-1 mt-1">
+            <button class="btn btn-ghost btn-sm" id="btn-export-pred">💾 导出预测备份</button>
+            <button class="btn btn-ghost btn-sm" id="btn-clear-pred" style="color:var(--red)">🗑️ 清空所有预测纪录</button>
+          </div>
+        </div>
+      </div>
+      
+      <div>
+        <div class="card-title" style="font-size:0.85rem;cursor:pointer;" id="toggle-perf-panel">
+          📊 AI 算法自我进化表现 <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400">（点击展开/收起）</span>
+        </div>
+        <div id="perf-panel-body" class="hidden" style="background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:var(--radius-sm);">
+          <div id="strategy-performance"></div>
+        </div>
       </div>
     </div>
 
@@ -767,11 +778,11 @@
   </footer>
 
   <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
-  <script src="js/utils.js?v=20260321c"></script>
-  <script src="js/football.js?v=20260321c"></script>
-  <script src="js/dlt.js?v=20260321c"></script>
-  <script src="js/charts.js?v=20260321c"></script>
-  <script src="js/main.js?v=20260321c"></script>
+  <script src="js/utils.js?v=20260321e"></script>
+  <script src="js/football.js?v=20260321e"></script>
+  <script src="js/dlt.js?v=20260321e"></script>
+  <script src="js/charts.js?v=20260321e"></script>
+  <script src="js/main.js?v=20260321e"></script>
 </body>
 
 </html>

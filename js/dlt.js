@@ -1135,20 +1135,29 @@ function updateStrategyPerf(stratId, hit) {
 
 // ---- Prediction UI Rendering ----
 const makePredBall = (n, bg, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : bg};color:${hit ? '#000' : '#fff'};font-weight:700;font-size:0.8rem;margin:0 2px;${hit ? 'box-shadow:0 0 8px rgba(241,196,15,0.6);' : ''}">${String(n).padStart(2, '0')}</span>`;
+const makeMiniPredBall = (n, bg, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : bg};color:${hit ? '#000' : '#fff'};font-weight:600;font-size:0.65rem;margin:0 1px;${hit ? 'box-shadow:0 0 6px rgba(241,196,15,0.5);' : ''}">${String(n).padStart(2, '0')}</span>`;
+const danBall = (n, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : 'linear-gradient(135deg,#f39c12,#e67e22)'};color:#fff;font-weight:700;font-size:0.65rem;margin:0 1px;border:1.5px solid #f39c12;${hit ? 'box-shadow:0 0 8px rgba(241,196,15,0.6);' : ''}">${String(n).padStart(2, '0')}</span>`;
 
 function renderCurrentPredictions(record) {
   const container = $('#prediction-sets');
   const issueEl = $('#pred-target-issue');
+  const reportContainer = $('#current-prediction-report');
+  const reportTitle = $('#current-report-title');
   if (!container) return;
-  if (!record) { container.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted)">点击「生成预测」为下一期生成 5 组号码</p>'; issueEl.textContent = getNextIssue(); return; }
-  issueEl.textContent = record.targetIssue;
+  if (!record) { 
+    container.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:1rem 0;">点击上方「一键生成」获取预测数据</p>'; 
+    if (issueEl) issueEl.textContent = getNextIssue();
+    if (reportContainer) reportContainer.style.display = 'none';
+    if (reportTitle) reportTitle.style.display = 'none';
+    return; 
+  }
+  if (issueEl) issueEl.textContent = record.targetIssue;
+  if (reportContainer) reportContainer.style.display = 'block';
+  if (reportTitle) reportTitle.style.display = 'block';
   let html = '';
   record.predictions.forEach((p, i) => {
     const hitInfo = record.hits ? record.hits[i] : null;
     const result = record.result;
-    // Compound display helpers
-    const makeMiniPredBall = (n, bg, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : bg};color:${hit ? '#000' : '#fff'};font-weight:600;font-size:0.65rem;margin:0 1px;${hit ? 'box-shadow:0 0 6px rgba(241,196,15,0.5);' : ''}">${String(n).padStart(2, '0')}</span>`;
-    const danBall = (n, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : 'linear-gradient(135deg,#f39c12,#e67e22)'};color:#fff;font-weight:700;font-size:0.65rem;margin:0 1px;border:1.5px solid #f39c12;${hit ? 'box-shadow:0 0 8px rgba(241,196,15,0.6);' : ''}">${String(n).padStart(2, '0')}</span>`;
     // Compound hit badge
     let compHitBadge = '';
     if (hitInfo?.compound) {
@@ -1194,42 +1203,56 @@ function renderCurrentPredictions(record) {
   });
   container.innerHTML = html;
 
-  // Render recommendation hits
-  if (record.recommendations && record.recommendations.length > 0) {
-    let recHtml = '<div style="margin-top:0.5rem;padding:0.5rem;background:rgba(243,156,18,0.05);border:1px solid rgba(243,156,18,0.15);border-radius:var(--radius-sm);">';
-    recHtml += '<div style="font-size:0.75rem;font-weight:600;color:#f39c12;margin-bottom:0.3rem;">下期建议号码</div>';
+  // Render recommendation hits directly into their own container
+  const recContainer = $('#recommendation-sets');
+  if (recContainer && record.recommendations && record.recommendations.length > 0) {
+    let recHtml = '';
     record.recommendations.forEach((r, i) => {
       const rh = record.recHits ? record.recHits[i] : null;
       const result = record.result;
-      recHtml += `<div style="display:flex;align-items:center;gap:0.2rem;margin-bottom:0.2rem;flex-wrap:wrap;">
-        <span style="font-size:0.6rem;color:var(--text-muted);min-width:5rem;">${r.label}</span>
-        ${r.front.map(n => makePredBall(n, 'linear-gradient(135deg,#f39c12,#e67e22)', result ? result.front.includes(n) : false)).join('')}
-        <span style="color:var(--text-muted);font-size:0.7rem;">+</span>
-        ${r.back.map(n => makePredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.back.includes(n) : false)).join('')}
-        ${rh ? `<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:6px;background:${rh.level !== '未中奖' ? 'rgba(241,196,15,0.2);color:var(--gold)' : 'rgba(100,100,100,0.15);color:var(--text-muted)'}">${rh.frontHits}+${rh.backHits} ${rh.level}</span>` : ''}
+      recHtml += `<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.6rem;padding-bottom:0.6rem;border-bottom:1px dashed rgba(255,255,255,0.05);flex-wrap:wrap;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;">
+          <span style="font-size:0.75rem;font-weight:600;color:var(--cyan);min-width:6rem;">${r.label}</span>
+          ${r.front.map(n => makePredBall(n, 'linear-gradient(135deg,#e74c3c,#c0392b)', result ? result.front.includes(n) : false)).join('')}
+          <span style="color:var(--text-muted);margin:0 0.15rem;">+</span>
+          ${r.back.map(n => makePredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.back.includes(n) : false)).join('')}
+        </div>
+        ${rh ? `<span style="font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:12px;background:${rh.level !== '未中奖' ? 'var(--gold)' : 'rgba(100,100,100,0.2)'};color:${rh.level !== '未中奖' ? '#000' : 'var(--text-muted)'};font-weight:600;">${rh.frontHits}+${rh.backHits} ${rh.level}</span>` : ''}
       </div>`;
     });
-    recHtml += '</div>';
-    container.innerHTML += recHtml;
+    recContainer.innerHTML = recHtml;
   }
 
-  // Render smartPick hits summary
-  if (record.smartPicks && (record.smartPicks.select?.length > 0 || record.smartPicks.coverage?.length > 0)) {
-    let spHtml = '<div style="margin-top:0.4rem;padding:0.5rem;background:rgba(0,188,212,0.05);border:1px solid rgba(0,188,212,0.15);border-radius:var(--radius-sm);">';
-    spHtml += '<div style="font-size:0.75rem;font-weight:600;color:#00bcd4;margin-bottom:0.3rem;">精选/覆盖模式</div>';
-    const sh = record.spHits;
-    if (record.smartPicks.select?.length > 0) {
-      spHtml += `<div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:0.2rem;">精选: ${record.smartPicks.select.length}注`;
-      if (sh) spHtml += ` · ${sh.selectWins}注中奖 · 最佳: ${sh.bestSelect ? sh.bestSelect.frontHits + '+' + sh.bestSelect.backHits + ' ' + sh.bestSelect.level : '-'}`;
-      spHtml += '</div>';
+  // Render smartPicks directly into their own container
+  const spSummary = $('#sp-select-summary');
+  const spCovSummary = $('#sp-coverage-summary');
+  const smartPickCard = $('#smart-pick-card');
+  if (smartPickCard) {
+    if (record.smartPicks && (record.smartPicks.select?.length > 0 || record.smartPicks.coverage?.length > 0)) {
+      smartPickCard.style.display = 'block';
+      const sh = record.spHits;
+      if (spSummary && record.smartPicks.select) {
+        let txt = `${record.smartPicks.select.length} 注 · ¥${record.smartPicks.select.length * 2}`;
+        if (sh) txt += ` | ${sh.selectWins}注中奖 · 最佳: ${sh.bestSelect ? sh.bestSelect.frontHits + '+' + sh.bestSelect.backHits + ' ' + sh.bestSelect.level : '-'}`;
+        spSummary.textContent = txt;
+        if (sh && sh.selectWins > 0) spSummary.style.color = 'var(--gold)';
+        else spSummary.style.color = 'var(--text-muted)';
+      }
+      if (spCovSummary && record.smartPicks.coverage) {
+        let txt = `${record.smartPicks.coverage.length} 注 · ¥${record.smartPicks.coverage.length * 2}`;
+        if (sh) txt += ` | ${sh.coverageWins}注中奖 · 最佳: ${sh.bestCoverage ? sh.bestCoverage.frontHits + '+' + sh.bestCoverage.backHits + ' ' + sh.bestCoverage.level : '-'}`;
+        spCovSummary.textContent = txt;
+        if (sh && sh.coverageWins > 0) spCovSummary.style.color = 'var(--gold)';
+        else spCovSummary.style.color = 'var(--text-muted)';
+      }
+      // Re-render picks if toggles are open
+      if ($('#sp-select-picks') && $('#sp-select-picks').innerHTML) renderSmartPicks(record.smartPicks.select, '#sp-select-picks');
+      if ($('#sp-coverage-picks') && $('#sp-coverage-picks').innerHTML) renderSmartPicks(record.smartPicks.coverage, '#sp-coverage-picks');
+    } else {
+      smartPickCard.style.display = 'none';
+      if (spSummary) spSummary.textContent = '-- 注 · ¥--';
+      if (spCovSummary) spCovSummary.textContent = '-- 注 · ¥--';
     }
-    if (record.smartPicks.coverage?.length > 0) {
-      spHtml += `<div style="font-size:0.7rem;color:var(--text-secondary);">覆盖: ${record.smartPicks.coverage.length}注`;
-      if (sh) spHtml += ` · ${sh.coverageWins}注中奖 · 最佳: ${sh.bestCoverage ? sh.bestCoverage.frontHits + '+' + sh.bestCoverage.backHits + ' ' + sh.bestCoverage.level : '-'}`;
-      spHtml += '</div>';
-    }
-    spHtml += '</div>';
-    container.innerHTML += spHtml;
   }
 }
 
@@ -1287,6 +1310,7 @@ function renderCurrentPredFromStorage() {
 
 function renderPredHistory() {
   const preds = getPredictions();
+  preds.forEach(r => backfillCompoundDantuo(r));
   const countEl = $('#pred-history-count');
   if (countEl) countEl.textContent = preds.length + ' 期';
   const list = $('#pred-history-list');
@@ -1308,12 +1332,47 @@ function renderPredHistory() {
       record.predictions.forEach((p, pi) => {
         const hitInfo = record.hits ? record.hits[pi] : null;
         const result = record.result;
-        numsHTML += `<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.3rem;flex-wrap:wrap;">
-          <span style="font-size:0.68rem;color:var(--text-muted);min-width:52px;white-space:nowrap;">${p.label || '策略' + (pi + 1)}</span>
-          ${p.front.map(n => makePredBall(n, 'linear-gradient(135deg,#e74c3c,#c0392b)', result ? result.front.includes(n) : false)).join('')}
-          <span style="color:var(--text-muted);margin:0 1px;font-size:0.7rem;">+</span>
-          ${p.back.map(n => makePredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.back.includes(n) : false)).join('')}
-          ${hitInfo ? `<span style="font-size:0.65rem;color:${hitInfo.level !== '未中奖' ? 'var(--gold)' : 'var(--text-muted)'};margin-left:0.3rem;">${hitInfo.frontHits}+${hitInfo.backHits}</span>` : ''}
+        let compHitBadge = '';
+        if (hitInfo?.compound) {
+          const ch = hitInfo.compound;
+          compHitBadge = `<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:6px;background:${ch.bestLevel !== '未中奖' ? 'rgba(155,89,182,0.2);color:#9b59b6' : 'rgba(100,100,100,0.15);color:var(--text-muted)'}">${ch.frontHits}+${ch.backHits} ${ch.winBets > 0 ? ch.winBets + '注中奖 ' : ''}${ch.bestLevel}</span>`;
+        }
+        let dtHitBadge = '';
+        if (hitInfo?.dantuo) {
+          const dt = hitInfo.dantuo;
+          dtHitBadge = `<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:6px;background:${dt.bestLevel !== '未中奖' ? 'rgba(243,156,18,0.2);color:#f39c12' : 'rgba(100,100,100,0.15);color:var(--text-muted)'}">${dt.allDanOk ? '✅胆全中' : '❌胆未全中'} ${dt.bestLevel}</span>`;
+        }
+
+        numsHTML += `<div style="margin-bottom:0.6rem;padding-bottom:0.6rem;border-bottom:1px dashed rgba(255,255,255,0.05);padding-left:0.3rem;">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--cyan);margin-bottom:0.3rem;">${p.label || '策略' + (pi + 1)}</div>
+          
+          <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.3rem;flex-wrap:wrap;">
+            <span style="font-size:0.6rem;color:var(--text-muted);min-width:2.5rem;">单式</span>
+            ${p.front.map(n => makePredBall(n, 'linear-gradient(135deg,#e74c3c,#c0392b)', result ? result.front.includes(n) : false)).join('')}
+            <span style="color:var(--text-muted);margin:0 1px;font-size:0.7rem;">+</span>
+            ${p.back.map(n => makePredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.back.includes(n) : false)).join('')}
+            ${hitInfo ? `<span style="font-size:0.65rem;color:${hitInfo.level !== '未中奖' ? 'var(--gold)' : 'var(--text-muted)'};margin-left:0.3rem;padding:0.1rem 0.4rem;border-radius:6px;background:${hitInfo.level !== '未中奖' ? 'rgba(241,196,15,0.2)' : 'rgba(100,100,100,0.15)'}">${hitInfo.frontHits}+${hitInfo.backHits} ${hitInfo.level}</span>` : ''}
+          </div>
+          
+          ${p.compound ? `<div style="display:flex;align-items:center;gap:0.2rem;flex-wrap:wrap;margin-bottom:0.2rem;">
+            <span style="font-size:0.6rem;color:var(--text-muted);min-width:2.5rem;">复式</span>
+            ${p.compound.front.map(n => makeMiniPredBall(n, 'linear-gradient(135deg,#9b59b6,#8e44ad)', result ? result.front.includes(n) : false)).join('')}
+            <span style="color:var(--text-muted);font-size:0.7rem;">+</span>
+            ${p.compound.back.map(n => makeMiniPredBall(n, 'linear-gradient(135deg,#2c3e50,#34495e)', result ? result.back.includes(n) : false)).join('')}
+            ${compHitBadge}
+          </div>` : ''}
+          
+          ${p.dantuo ? `<div style="display:flex;align-items:center;gap:0.2rem;flex-wrap:wrap;">
+            <span style="font-size:0.6rem;color:var(--text-muted);min-width:2.5rem;">胆拖</span>
+            ${p.dantuo.danF.map(n => danBall(n, result ? result.front.includes(n) : false)).join('')}
+            <span style="color:var(--text-muted);font-size:0.55rem;">胆</span>
+            ${p.dantuo.tuoF.map(n => makeMiniPredBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)', result ? result.front.includes(n) : false)).join('')}
+            <span style="color:var(--text-muted);font-size:0.7rem;">+</span>
+            ${p.dantuo.danB.map(n => danBall(n, result ? result.back.includes(n) : false)).join('')}
+            <span style="color:var(--text-muted);font-size:0.55rem;">胆</span>
+            ${p.dantuo.tuoB.map(n => makeMiniPredBall(n, 'linear-gradient(135deg,#2c3e50,#34495e)', result ? result.back.includes(n) : false)).join('')}
+            ${dtHitBadge}
+          </div>` : ''}
         </div>`;
       });
       numsHTML += '</div>';
