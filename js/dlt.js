@@ -1,6 +1,181 @@
 // =============================================
 // SECTION 2: 大乐透深度分析
 // =============================================
+
+// ---- Smart Bet Slip (LotteryCart) State Management ----
+class LotteryCart {
+  constructor() {
+    this.front = new Set();
+    this.back = new Set();
+    this.initListeners();
+  }
+
+  initListeners() {
+    document.addEventListener('click', e => {
+      const ball = e.target.closest('.pred-ball-click');
+      if (ball) {
+        const n = parseInt(ball.dataset.num);
+        const zone = ball.dataset.zone;
+        this.addBall(n, zone);
+        
+        // Add flying animation effect
+        const rect = ball.getBoundingClientRect();
+        const clone = ball.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = rect.left + 'px';
+        clone.style.top = rect.top + 'px';
+        clone.style.zIndex = 9999;
+        clone.style.transition = 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        clone.style.pointerEvents = 'none';
+        document.body.appendChild(clone);
+        
+        // Target is the bet slip summary area
+        const target = document.getElementById('bet-slip-count');
+        const targetRect = target ? target.getBoundingClientRect() : {left: window.innerWidth - 50, top: 100};
+        
+        setTimeout(() => {
+          clone.style.transform = 'scale(0.3)';
+          clone.style.left = targetRect.left + 'px';
+          clone.style.top = targetRect.top + 'px';
+          clone.style.opacity = 0;
+        }, 10);
+        
+        setTimeout(() => clone.remove(), 500);
+      }
+    });
+
+    const btnClear = document.getElementById('btn-clear-slip');
+    if (btnClear) btnClear.addEventListener('click', (e) => {
+      e.stopPropagation(); // prevent header toggle
+      this.clearAll();
+    });
+
+    const slipHeader = document.querySelector('.bet-slip-header');
+    if (slipHeader) {
+      slipHeader.addEventListener('click', () => {
+        if (window.innerWidth <= 1023) {
+          const card = document.querySelector('.bet-slip-card');
+          if (card) card.classList.toggle('expanded');
+        }
+      });
+    }
+    
+    // Bind manual supplement actions
+    const inputNum = document.getElementById('slip-manual-num');
+    const btnAddF = document.getElementById('btn-add-front-num');
+    const btnAddB = document.getElementById('btn-add-back-num');
+    if (btnAddF && inputNum) {
+      btnAddF.onclick = () => {
+        const val = parseInt(inputNum.value);
+        if (isNaN(val) || val < 1 || val > 35) { showToast('请输入 01-35 之间的前区号码', 'warning'); return; }
+        this.addBall(val, 'front');
+        inputNum.value = '';
+      };
+    }
+    if (btnAddB && inputNum) {
+      btnAddB.onclick = () => {
+        const val = parseInt(inputNum.value);
+        if (isNaN(val) || val < 1 || val > 12) { showToast('请输入 01-12 之间的后区号码', 'warning'); return; }
+        this.addBall(val, 'back');
+        inputNum.value = '';
+      };
+    }
+  }
+
+  addBall(n, zone) {
+    if (zone === 'front' && this.front.has(n)) return;
+    if (zone === 'back' && this.back.has(n)) return;
+    
+    if (zone === 'front' && this.front.size >= 35) { showToast('前区最多选择35个', 'warning'); return; }
+    if (zone === 'back' && this.back.size >= 12) { showToast('后区最多选择12个', 'warning'); return; }
+
+    this[zone].add(n);
+    this.render();
+  }
+
+  removeBall(n, zone) {
+    this[zone].delete(n);
+    this.render();
+  }
+
+  clearAll() {
+    this.front.clear();
+    this.back.clear();
+    this.render();
+  }
+
+  render() {
+    const frontPool = document.getElementById('slip-front-pool');
+    const backPool = document.getElementById('slip-back-pool');
+    const slipContainer = document.getElementById('slip-pools-container');
+    const emptyMsg = document.getElementById('bet-slip-empty');
+    if (!frontPool || !slipContainer) return;
+
+    if (this.front.size === 0 && this.back.size === 0) {
+      slipContainer.style.display = 'none';
+      emptyMsg.style.display = 'block';
+    } else {
+      slipContainer.style.display = 'block';
+      emptyMsg.style.display = 'none';
+    }
+
+    // Render front
+    frontPool.innerHTML = Array.from(this.front).sort((a,b)=>a-b).map(n => 
+      `<div class="bet-slip-item" onclick="window.dltCart.removeBall(${n}, 'front')" style="padding:0.2rem 0.4rem;background:var(--red);color:#fff;border-radius:4px;font-size:0.75rem;font-weight:bold;">${String(n).padStart(2,'0')} ✕</div>`
+    ).join('');
+    document.getElementById('slip-front-count').textContent = this.front.size;
+
+    // Render back
+    backPool.innerHTML = Array.from(this.back).sort((a,b)=>a-b).map(n => 
+      `<div class="bet-slip-item" onclick="window.dltCart.removeBall(${n}, 'back')" style="padding:0.2rem 0.4rem;background:var(--blue);color:#fff;border-radius:4px;font-size:0.75rem;font-weight:bold;">${String(n).padStart(2,'0')} ✕</div>`
+    ).join('');
+    document.getElementById('slip-back-count').textContent = this.back.size;
+    
+    document.getElementById('bet-slip-count').textContent = ` (${this.front.size + this.back.size}球)`;
+
+    this.calcCost();
+  }
+
+  calcCost() {
+    const slipCost = document.getElementById('slip-cost-preview');
+    const btnSubmit = document.getElementById('btn-slip-submit');
+    if (!slipCost) return;
+
+    const fc = this.front.size;
+    const bc = this.back.size;
+    
+    if (fc < 5 || bc < 2) {
+      slipCost.textContent = '未满足 5+2 条件';
+      slipCost.style.color = 'var(--text-muted)';
+      btnSubmit.disabled = true;
+      btnSubmit.style.opacity = '0.6';
+      return;
+    }
+
+    const bets = comb(fc, 5) * comb(bc, 2);
+    if (bets > 1000000) {
+       slipCost.textContent = '超过百万注上限';
+       slipCost.style.color = 'var(--red)';
+       btnSubmit.disabled = true;
+       btnSubmit.style.opacity = '0.6';
+       return;
+    }
+
+    slipCost.textContent = `${bets} 注 / ¥${bets * 2}`;
+    slipCost.style.color = 'var(--gold)';
+    btnSubmit.disabled = false;
+    btnSubmit.style.opacity = '1';
+    
+    // Bind submit explicit single closure just in case
+    btnSubmit.onclick = () => {
+      showDLTCheckout(Array.from(this.front), Array.from(this.back));
+    };
+  }
+}
+
+// Global hook
+window.dltCart = new LotteryCart();
+
 const DLT_DEFAULT_DATA = [
   { issue: '26023', front: [9, 25, 26, 27, 28], back: [1, 8] },
   { issue: '26022', front: [5, 9, 10, 18, 26], back: [5, 6] },
@@ -212,83 +387,6 @@ function resetData() {
   showToast('已重置为默认数据', 'info');
 }
 
-// ---- Number Grid & Selection ----
-function initNumberGrid() {
-  const zone1 = $('#front-zone-1'), zone2 = $('#front-zone-2'), zone3 = $('#front-zone-3'), backZone = $('#back-zone');
-  if (zone1) zone1.innerHTML = '';
-  if (zone2) zone2.innerHTML = '';
-  if (zone3) zone3.innerHTML = '';
-  if (backZone) backZone.innerHTML = '';
-  for (let i = 1; i <= 35; i++) {
-    const ball = document.createElement('div'); ball.className = 'num-ball';
-    ball.textContent = String(i).padStart(2, '0'); ball.dataset.num = i; ball.dataset.zone = 'front';
-    ball.addEventListener('click', () => toggleBall(ball, 'front'));
-    if (i <= 12) { if (zone1) zone1.appendChild(ball); }
-    else if (i <= 24) { if (zone2) zone2.appendChild(ball); }
-    else { if (zone3) zone3.appendChild(ball); }
-  }
-  for (let i = 1; i <= 12; i++) {
-    const ball = document.createElement('div'); ball.className = 'num-ball';
-    ball.textContent = String(i).padStart(2, '0'); ball.dataset.num = i; ball.dataset.zone = 'back';
-    ball.addEventListener('click', () => toggleBall(ball, 'back'));
-    if (backZone) backZone.appendChild(ball);
-  }
-}
-
-function toggleBall(ball, zone) {
-  const betType = $('#dlt-bet-type')?.value || 'single';
-  if (betType === 'dantuo') {
-    // In dantuo mode: single click = tuo (blue), already-selected click = unselect
-    const tuoCls = zone === 'front' ? 'selected-front' : 'selected-back';
-    const danCls = zone === 'front' ? 'dan-front' : 'dan-back';
-    if (ball.classList.contains(danCls)) {
-      // Dan → unselect
-      ball.classList.remove(danCls);
-    } else if (ball.classList.contains(tuoCls)) {
-      // Tuo → Dan (toggle to dan)
-      ball.classList.remove(tuoCls);
-      ball.classList.add(danCls);
-    } else {
-      // Unselected → Tuo
-      ball.classList.add(tuoCls);
-    }
-  } else {
-    ball.classList.toggle(zone === 'front' ? 'selected-front' : 'selected-back');
-  }
-}
-
-function getSelectedNums(zone) {
-  const cls = zone === 'front' ? 'selected-front' : 'selected-back';
-  const selector = zone === 'front' ? '.dlt-zone-grid .num-ball.' + cls : '#back-zone .num-ball.' + cls;
-  return Array.from($$(selector)).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
-}
-
-function clearSelection() {
-  $$('.num-ball.selected-front').forEach(b => b.classList.remove('selected-front'));
-  $$('.num-ball.selected-back').forEach(b => b.classList.remove('selected-back'));
-  showToast('选号已清空', 'info');
-}
-
-function randomSelect() {
-  clearSelection();
-  const frontNums = [], backNums = [];
-  while (frontNums.length < 5) { const n = Math.floor(Math.random() * 35) + 1; if (!frontNums.includes(n)) frontNums.push(n); }
-  while (backNums.length < 2) { const n = Math.floor(Math.random() * 12) + 1; if (!backNums.includes(n)) backNums.push(n); }
-  frontNums.forEach(n => { const ball = $(`.dlt-zone-grid .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-front'); });
-  backNums.forEach(n => { const ball = $(`#back-zone .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-back'); });
-  showToast('已随机选取 5+2', 'success');
-}
-
-function smartQuickPick() {
-  refreshDLTHistory();
-  if (DLT_HISTORY.length < 5) { showToast('数据不足，至少需要5期', 'warning'); return; }
-  const front = pickFrontForStrategy({ wFreq: 0.3, wMiss: 0.35, wRecent: 0.35 });
-  const back = pickBackForStrategy({ wFreq: 0.3, wMiss: 0.35 });
-  clearSelection();
-  front.forEach(n => { const ball = $(`.dlt-zone-grid .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-front'); });
-  back.forEach(n => { const ball = $(`#back-zone .num-ball[data-num="${n}"]`); if (ball) ball.classList.add('selected-back'); });
-  showToast('智能选号完成', 'success');
-}
 
 // ---- Compound Bet Prize Breakdown (复式每级中奖明细) ----
 // Given user selected n front numbers and m back numbers,
@@ -324,88 +422,55 @@ function calcCompoundPrizeBreakdown(nFront, mBack) {
   return { tiers: result, totalHitBets };
 }
 
-// ---- Dantuo number parsing ----
-function getDantuoNums() {
-  const danFront = Array.from($$('.dlt-zone-grid .num-ball.dan-front')).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
-  const tuoFront = Array.from($$('.dlt-zone-grid .num-ball.selected-front')).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
-  const danBack = Array.from($$('#back-zone .num-ball.dan-back')).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
-  const tuoBack = Array.from($$('#back-zone .num-ball.selected-back')).map(b => parseInt(b.dataset.num)).sort((a, b) => a - b);
-  return { danFront, tuoFront, danBack, tuoBack };
+// ---- Checkout Modal Rendering logic ----
+let currentModalFront = [];
+let currentModalBack = [];
+
+function initModalListeners() {
+  const mult = document.getElementById('modal-dlt-multiple');
+  const addon = document.getElementById('modal-dlt-addon');
+  if (mult) mult.addEventListener('input', renderDLTCheckout);
+  if (addon) addon.addEventListener('change', renderDLTCheckout);
 }
 
-// ---- Bet type change handler ----
-function onBetTypeChange() {
-  const type = $('#dlt-bet-type')?.value || 'single';
-  const hint = $('#dlt-bet-hint');
-  if (!hint) return;
-  if (type === 'single') {
-    hint.innerHTML = '💡 单式：前区选 <b>5</b> 个，后区选 <b>2</b> 个';
-    hint.style.display = '';
-    $$('.num-ball').forEach(b => { b.classList.remove('dan-front', 'dan-back'); });
-  } else if (type === 'multi') {
-    hint.innerHTML = '💡 复式：前区选 <b>6~20</b> 个，后区选 <b>2~12</b> 个，系统自动展开为多注';
-    hint.style.display = '';
-    $$('.num-ball').forEach(b => { b.classList.remove('dan-front', 'dan-back'); });
-  } else if (type === 'dantuo') {
-    hint.innerHTML = '💡 胆拖：<b>单击</b>=拖码(蓝)，<b>双击</b>=胆码(金)。前区胆码1-4个，拖码≥1个';
-    hint.style.display = '';
-  }
-}
-
-// ---- DLT Bet Calculation (official rules, compound/dantuo) ----
-function calcDLTBets() {
-  const betType = $('#dlt-bet-type')?.value || 'single';
-  const multiple = parseInt($('#dlt-multiple').value) || 1;
-  const addOn = $('#dlt-addon')?.checked || false;
+function showDLTCheckout(frontArr, backArr) {
+  const modal = document.getElementById('dlt-result-modal');
+  if (!modal) return;
+  modal.showModal();
+  currentModalFront = frontArr.sort((a,b)=>a-b);
+  currentModalBack = backArr.sort((a,b)=>a-b);
   
-  let betCount, front, back, betTypeLabel, danInfo = '';
-
-  if (betType === 'dantuo') {
-    // ---- 胆拖模式 ----
-    const { danFront, tuoFront, danBack, tuoBack } = getDantuoNums();
-    if (danFront.length < 1) { showToast('胆拖：前区至少选1个胆码（双击选择）', 'warning'); return; }
-    if (danFront.length > 4) { showToast('胆拖：前区胆码最多4个', 'warning'); return; }
-    if (tuoFront.length < 1) { showToast('胆拖：前区至少选1个拖码', 'warning'); return; }
-    if (danFront.length + tuoFront.length < 6) { showToast('胆拖：前区胆码+拖码至少6个', 'warning'); return; }
-    const needFrontTuo = 5 - danFront.length;
-    if (tuoFront.length < needFrontTuo) { showToast(`胆拖：需要至少${needFrontTuo}个前区拖码`, 'warning'); return; }
-    const backTotal = danBack.length + tuoBack.length;
-    if (danBack.length > 1) { showToast('胆拖：后区胆码最多1个', 'warning'); return; }
-    if (backTotal < 2) { showToast('胆拖：后区至少选2个号码', 'warning'); return; }
-    const needBackTuo = 2 - danBack.length;
-    if (tuoBack.length < needBackTuo) { showToast(`胆拖：需要至少${needBackTuo}个后区拖码`, 'warning'); return; }
-
-    betCount = comb(tuoFront.length, needFrontTuo) * comb(tuoBack.length, needBackTuo);
-    front = [...danFront, ...tuoFront];
-    back = [...danBack, ...tuoBack];
-    betTypeLabel = '胆拖';
-    danInfo = `<div class="result-item"><div class="label">前区胆码</div><div class="value gold">${danFront.map(n => String(n).padStart(2,'0')).join(' ')}</div></div>
-    <div class="result-item"><div class="label">前区拖码</div><div class="value cyan">${tuoFront.map(n => String(n).padStart(2,'0')).join(' ')}</div></div>
-    <div class="result-item"><div class="label">后区胆码</div><div class="value gold">${danBack.length ? danBack.map(n => String(n).padStart(2,'0')).join(' ') : '无'}</div></div>
-    <div class="result-item"><div class="label">后区拖码</div><div class="value cyan">${tuoBack.map(n => String(n).padStart(2,'0')).join(' ')}</div></div>`;
-  } else {
-    // ---- 单式 / 复式 ----
-    front = getSelectedNums('front');
-    back = getSelectedNums('back');
-    if (front.length < 5) { showToast('前区至少选择 5 个号码', 'warning'); return; }
-    if (back.length < 2) { showToast('后区至少选择 2 个号码', 'warning'); return; }
-    if (betType === 'single' && (front.length !== 5 || back.length !== 2)) {
-      showToast('单式投注：前区必须选5个，后区必须选2个', 'warning'); return;
-    }
-    betCount = comb(front.length, 5) * comb(back.length, 2);
-    betTypeLabel = front.length > 5 && back.length > 2 ? '双区复式' :
-                   front.length > 5 ? '前区复式' :
-                   back.length > 2 ? '后区复式' : '单式';
+  // Attach listeners once
+  if (!modal.dataset.listenersBound) {
+    initModalListeners();
+    modal.dataset.listenersBound = 'true';
   }
 
+  // Reset modifiers
+  if (document.getElementById('modal-dlt-multiple')) document.getElementById('modal-dlt-multiple').value = 1;
+  if (document.getElementById('modal-dlt-addon')) document.getElementById('modal-dlt-addon').checked = false;
+
+  renderDLTCheckout();
+}
+
+function renderDLTCheckout() {
+  const front = currentModalFront;
+  const back = currentModalBack;
+  const multiple = parseInt(document.getElementById('modal-dlt-multiple')?.value) || 1;
+  const addOn = document.getElementById('modal-dlt-addon')?.checked || false;
+
+  const betTypeLabel = front.length > 5 && back.length > 2 ? '双区复式' :
+                 front.length > 5 ? '前区复式' :
+                 back.length > 2 ? '后区复式' : '单式';
+
+  const betCount = comb(front.length, 5) * comb(back.length, 2);
   const baseCost = betCount * 2 * multiple;
   const addOnCost = addOn ? betCount * 1 * multiple : 0;
   const totalCost = baseCost + addOnCost;
 
-  // 官方规则第十条: 单张基本投注最大¥20,000, 基本+追加最大¥30,000
   let limitWarning = '';
   if (baseCost > 20000) limitWarning = `⚠️ 基本投注¥${baseCost.toLocaleString()}超出单张限额¥20,000`;
-  if (totalCost > 30000) limitWarning = `⚠️ 合计¥${totalCost.toLocaleString()}超出单张限额¥30,000`;
+  if (totalCost > 30000) limitWarning = `⚠️ 基本+追加总额¥${totalCost.toLocaleString()}超出限额¥30,000`;
 
   const totalCombs = comb(35, 5) * comb(12, 2);
 
@@ -468,7 +533,7 @@ function calcDLTBets() {
 
   // ---- Render ----
   $('#dlt-summary').innerHTML = `
-    ${danInfo}
+    <div class="result-item"><div class="label">已选号码</div><div class="value neutral">前 ${front.length}个, 后 ${back.length}个</div></div>
     <div class="result-item"><div class="label">投注方式</div><div class="value neutral">${betTypeLabel}</div></div>
     <div class="result-item"><div class="label">前区选号</div><div class="value neutral">${front.length}个</div></div>
     <div class="result-item"><div class="label">后区选号</div><div class="value neutral">${back.length}个</div></div>
@@ -493,9 +558,7 @@ function calcDLTBets() {
     $('#dlt-summary').parentElement.appendChild(container);
   }
 
-  $('#dlt-calc-result').classList.remove('hidden');
   if (limitWarning) showToast(limitWarning, 'warning');
-  else showToast(`${betTypeLabel}计算完成：${betCount.toLocaleString()}注`, 'success');
 }
 
 // ---- Period-aware analysis helpers ----
@@ -1133,10 +1196,14 @@ function updateStrategyPerf(stratId, hit) {
   saveStrategyPerf(perf);
 }
 
-// ---- Prediction UI Rendering ----
-const makePredBall = (n, bg, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : bg};color:${hit ? '#000' : '#fff'};font-weight:700;font-size:0.8rem;margin:0 2px;${hit ? 'box-shadow:0 0 8px rgba(241,196,15,0.6);' : ''}">${String(n).padStart(2, '0')}</span>`;
-const makeMiniPredBall = (n, bg, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : bg};color:${hit ? '#000' : '#fff'};font-weight:600;font-size:0.65rem;margin:0 1px;${hit ? 'box-shadow:0 0 6px rgba(241,196,15,0.5);' : ''}">${String(n).padStart(2, '0')}</span>`;
-const danBall = (n, hit) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : 'linear-gradient(135deg,#f39c12,#e67e22)'};color:#fff;font-weight:700;font-size:0.65rem;margin:0 1px;border:1.5px solid #f39c12;${hit ? 'box-shadow:0 0 8px rgba(241,196,15,0.6);' : ''}">${String(n).padStart(2, '0')}</span>`;
+// ---- Prediction UI Rendering & Bet Slip Hover ----
+const getZoneFromBg = (bg) => (bg.includes('#e74c3c') || bg.includes('#f39c12') || bg.includes('#9b59b6')) ? 'front' : 'back';
+
+const makePredBall = (n, bg, hit) => `<span class="pred-ball-click" data-num="${n}" data-zone="${getZoneFromBg(bg)}" style="display:inline-flex;cursor:pointer;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : bg};color:${hit ? '#000' : '#fff'};font-weight:700;font-size:0.8rem;margin:0 2px;transition:0.2s;${hit ? 'box-shadow:0 0 8px rgba(241,196,15,0.6);' : ''}" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">${String(n).padStart(2, '0')}</span>`;
+
+const makeMiniPredBall = (n, bg, hit) => `<span class="pred-ball-click" data-num="${n}" data-zone="${getZoneFromBg(bg)}" style="display:inline-flex;cursor:pointer;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : bg};color:${hit ? '#000' : '#fff'};font-weight:600;font-size:0.65rem;margin:0 1px;transition:0.2s;${hit ? 'box-shadow:0 0 6px rgba(241,196,15,0.5);' : ''}" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">${String(n).padStart(2, '0')}</span>`;
+
+const danBall = (n, hit) => `<span class="pred-ball-click" data-num="${n}" data-zone="front" style="display:inline-flex;cursor:pointer;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${hit ? 'linear-gradient(135deg,#f1c40f,#e67e22)' : 'linear-gradient(135deg,#f39c12,#e67e22)'};color:#fff;font-weight:700;font-size:0.65rem;margin:0 1px;border:1.5px solid #f39c12;transition:0.2s;${hit ? 'box-shadow:0 0 8px rgba(241,196,15,0.6);' : ''}" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">${String(n).padStart(2, '0')}</span>`;
 
 function renderCurrentPredictions(record) {
   const container = $('#prediction-sets');
@@ -1155,9 +1222,18 @@ function renderCurrentPredictions(record) {
   if (reportContainer) reportContainer.style.display = 'block';
   if (reportTitle) reportTitle.style.display = 'block';
   let html = '';
+  const perfData = getStrategyPerf();
   record.predictions.forEach((p, i) => {
     const hitInfo = record.hits ? record.hits[i] : null;
     const result = record.result;
+    
+    // Sparkline/Performance Indicator
+    let perfBadge = '';
+    const stratPerf = perfData[p.strategyId];
+    if (!hitInfo && stratPerf && stratPerf.total > 0) {
+      const winRate = ((stratPerf.totalFrontHits / (stratPerf.total * 5)) * 100).toFixed(1);
+      perfBadge = `<span style="font-size:0.65rem;color:var(--text-muted);background:rgba(0,0,0,0.3);padding:0.15rem 0.4rem;border-radius:10px;border:1px solid rgba(255,255,255,0.05);" title="近期综合命中得分"><span class="icon" style="opacity:0.6;">⚡</span>近期战力: <span style="color:${winRate >= 15 ? 'var(--cyan)' : 'var(--text-secondary)'};font-weight:bold;">${winRate}%</span></span>`;
+    }
     // Compound hit badge
     let compHitBadge = '';
     if (hitInfo?.compound) {
@@ -1172,7 +1248,7 @@ function renderCurrentPredictions(record) {
     }
     html += `<div style="padding:0.5rem;background:rgba(10,14,26,0.3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:0.4rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
-        <span style="font-weight:600;font-size:0.8rem;">${p.label}</span>
+        <span style="font-weight:600;font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;">${p.label} ${perfBadge}</span>
         ${hitInfo ? `<span style="font-size:0.75rem;padding:0.15rem 0.5rem;border-radius:9px;background:${hitInfo.level !== '未中奖' ? 'rgba(241,196,15,0.2);color:var(--gold)' : 'rgba(100,100,100,0.2);color:var(--text-muted)'}">${hitInfo.frontHits}+${hitInfo.backHits} ${hitInfo.level}</span>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.3rem;">

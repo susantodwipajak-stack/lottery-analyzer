@@ -182,40 +182,22 @@ function toggleAutoUpdate() {
 // =============================================
 // Event Bindings
 // =============================================
-$('#btn-calc-dlt').addEventListener('click', calcDLTBets);
-$('#dlt-bet-type')?.addEventListener('change', onBetTypeChange);
-$('#btn-analyze-history').addEventListener('click', analyzeHistory);
-$('#btn-show-history').addEventListener('click', showHistory);
-$('#btn-close-history').addEventListener('click', () => $('#history-modal').classList.add('hidden'));
-$('#btn-check-prize').addEventListener('click', checkDLTPrize);
-$('#btn-calc-fb-prize').addEventListener('click', calcFBPrize);
-$('#btn-add-draw').addEventListener('click', addSingleDraw);
-$('#btn-batch-add').addEventListener('click', () => $('#batch-add-area').classList.toggle('hidden'));
-$('#btn-batch-submit').addEventListener('click', batchAddDraws);
-$('#btn-batch-cancel').addEventListener('click', () => $('#batch-add-area').classList.add('hidden'));
-$('#btn-export-data').addEventListener('click', exportData);
-$('#btn-import-data').addEventListener('click', () => $('#file-import').click());
-$('#file-import').addEventListener('change', (e) => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; });
-$('#btn-reset-data').addEventListener('click', resetData);
-$('#btn-regenerate').addEventListener('click', generateRecommendations);
-$('#btn-fetch-official').addEventListener('click', () => fetchOfficialData(false));
-$('#auto-update-toggle').addEventListener('change', toggleAutoUpdate);
-$('#btn-random-pick').addEventListener('click', randomSelect);
-$('#btn-smart-pick').addEventListener('click', smartQuickPick);
-$('#btn-clear-pick').addEventListener('click', clearSelection);
-$('#btn-quick-3').addEventListener('click', () => {
-  let html = '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem">以下为机选3注：</div>';
-  for (let i = 0; i < 3; i++) {
-    const f = pickFrontForStrategy({ wFreq: 0.3, wMiss: 0.35, wRecent: 0.35 });
-    const b = pickBackForStrategy({ wFreq: 0.3, wMiss: 0.35 });
-    const makeBall = (n, bg) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:${bg};color:#fff;font-weight:700;font-size:0.8rem;margin:0 1px;">${String(n).padStart(2, '0')}</span>`;
-    html += `<div style="margin-bottom:0.4rem">${f.map(n => makeBall(n, 'linear-gradient(135deg,#e74c3c,#c0392b)')).join('')} <span style="color:var(--text-muted)">+</span> ${b.map(n => makeBall(n, 'linear-gradient(135deg,#2980b9,#1a5276)')).join('')}</div>`;
-  }
-  showToast('机选3注已生成', 'success');
-  const modal = document.createElement('div'); modal.className = 'card'; modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;max-width:400px;width:90%;';
-  modal.innerHTML = `<div class="card-title flex justify-between"><span>⚡ 机选3注</span><button class="btn btn-ghost btn-sm" onclick="this.closest('.card').remove()">✕</button></div>${html}`;
-  document.body.appendChild(modal);
-});
+$('#btn-analyze-history')?.addEventListener('click', analyzeHistory);
+$('#btn-show-history')?.addEventListener('click', showHistory);
+$('#btn-close-history')?.addEventListener('click', () => $('#history-modal').classList.add('hidden'));
+$('#btn-check-prize')?.addEventListener('click', checkDLTPrize);
+$('#btn-calc-fb-prize')?.addEventListener('click', calcFBPrize);
+$('#btn-add-draw')?.addEventListener('click', addSingleDraw);
+$('#btn-batch-add')?.addEventListener('click', () => $('#batch-add-area').classList.toggle('hidden'));
+$('#btn-batch-submit')?.addEventListener('click', batchAddDraws);
+$('#btn-batch-cancel')?.addEventListener('click', () => $('#batch-add-area').classList.add('hidden'));
+$('#btn-export-data')?.addEventListener('click', exportData);
+$('#btn-import-data')?.addEventListener('click', () => $('#file-import').click());
+$('#file-import')?.addEventListener('change', (e) => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; });
+$('#btn-reset-data')?.addEventListener('click', resetData);
+$('#btn-regenerate')?.addEventListener('click', generateRecommendations);
+$('#btn-fetch-official')?.addEventListener('click', () => fetchOfficialData(false));
+$('#auto-update-toggle')?.addEventListener('change', toggleAutoUpdate);
 
 // Collapsible panels (P1: with arrow indicators)
 initCollapsiblePanel('#toggle-data-panel', '#data-panel-body');
@@ -223,9 +205,16 @@ initCollapsiblePanel('#toggle-pred-history', '#pred-history-body');
 initCollapsiblePanel('#toggle-perf-panel', '#perf-panel-body');
 
 // Prediction system bindings
-$('#btn-generate-pred').addEventListener('click', generatePredictionSet);
-$('#btn-compare-pred').addEventListener('click', comparePredictions);
-$('#btn-export-pred').addEventListener('click', () => {
+$('#btn-generate-pred')?.addEventListener('click', generatePredictionSet);
+$('#btn-compare-pred')?.addEventListener('click', comparePredictions);
+// FB bindings
+$('#btn-gen-fb-picks')?.addEventListener('click', () => {
+  if (typeof generateFBPicks === 'function') generateFBPicks();
+});
+$('#btn-compare-fb')?.addEventListener('click', () => {
+  if (typeof openFBSimulator === 'function') openFBSimulator();
+});
+$('#btn-export-pred')?.addEventListener('click', () => {
   const data = getPredictions();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -234,7 +223,7 @@ $('#btn-export-pred').addEventListener('click', () => {
   showToast('预测数据已导出', 'success');
 });
 // P2: Custom confirm dialog replaces confirm()
-$('#btn-clear-pred').addEventListener('click', async () => {
+$('#btn-clear-pred')?.addEventListener('click', async () => {
   const ok = await showConfirmDialog({
     title: '清空预测记录',
     message: '删除后将无法恢复所有历史预测和策略表现数据。',
@@ -285,7 +274,7 @@ $$('.tab-btn').forEach(btn => {
     }
   });
 });
-initNumberGrid();
+// Enhanced tab switch with AOS refresh
 updateDataBadge();
 renderLatestDLT();
 renderFBBanner();

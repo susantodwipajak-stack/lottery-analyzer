@@ -3478,3 +3478,120 @@ input[type="checkbox"] {
   border-color: rgba(0,255,136,0.4);
   color: #0f8;
 }
+/* ---------- Phase 3: DLT Dashboard Layout ---------- */
+.dlt-dashboard-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .dlt-dashboard-layout {
+    grid-template-columns: 7fr 3fr;
+  }
+}
+
+.bet-slip-card {
+  position: sticky;
+  top: 80px; /* Sticky below header */
+  border: 1px solid rgba(0, 255, 200, 0.3);
+  background: linear-gradient(135deg, rgba(10, 30, 40, 0.95), rgba(5, 20, 15, 0.7));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 100px);
+}
+
+.bet-slip-header {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bet-slip-body {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.bet-slip-footer {
+  padding: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0,0,0,0.2);
+}
+
+.bet-slip-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+  min-height: 50px;
+  background: rgba(0,0,0,0.3);
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed rgba(255,255,255,0.1);
+}
+
+.bet-slip-item {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.bet-slip-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 8px rgba(255,0,0,0.5); /* Delete hint */
+}
+
+/* Mobile Bottom Cart */
+@media (max-width: 1023px) {
+  .bet-slip-card {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    z-index: 1000;
+    top: auto;
+    max-height: 60vh;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+    transition: max-height 0.3s ease;
+  }
+  .bet-slip-card .bet-slip-body {
+    display: none;
+  }
+  .bet-slip-card.expanded {
+    max-height: 80vh;
+  }
+  .bet-slip-card.expanded .bet-slip-body {
+    display: block;
+  }
+  .bet-slip-header {
+    cursor: pointer;
+  }
+}
+
+/* ---------- Phase 4: Modal Dialogs ---------- */
+.modal-dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(15,25,35,0.98), rgba(10,15,25,0.98));
+  box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+  padding: 0;
+  color: var(--text-primary);
+  width: 95%;
+  max-width: 650px;
+}
+.modal-dialog::backdrop {
+  background: rgba(0, 5, 10, 0.85);
+  backdrop-filter: blur(5px);
+}
+.modal-dialog[open] {
+  animation: modal-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes modal-pop {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
