@@ -325,10 +325,8 @@ async function fetchFootballMatches() {
   for (const api of apis) {
     try {
       const fetchOpts = { signal: AbortSignal.timeout(10000) };
-      // Add Referer header for sporttery.cn APIs
-      if (api.url.includes('sporttery.cn')) {
-        fetchOpts.headers = { 'Referer': 'https://www.lottery.gov.cn/' };
-      }
+      // Some API servers require specific headers, but 'Referer' is an unsafe header in browsers.
+      // We will let the browser handle it automatically.
       const resp = await fetch(api.url, fetchOpts);
       if (!resp.ok) continue;
       const json = await resp.json();
@@ -355,8 +353,7 @@ async function fetchDrawResults() {
   if (!container) return;
   try {
     const resp = await fetch('https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=90&provinceId=0&pageSize=5&isVerify=1&pageNo=1', {
-      signal: AbortSignal.timeout(10000),
-      headers: { 'Referer': 'https://www.lottery.gov.cn/' }
+      signal: AbortSignal.timeout(10000)
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
@@ -881,8 +878,7 @@ async function compareFbPredictions() {
   } else {
     try {
       const resp = await fetch('https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=90&provinceId=0&pageSize=1&isVerify=1&pageNo=1', {
-        signal: AbortSignal.timeout(8000),
-        headers: { 'Referer': 'https://www.lottery.gov.cn/' }
+        signal: AbortSignal.timeout(8000)
       });
       if (resp.ok) {
         const json = await resp.json();
