@@ -209,6 +209,33 @@ function autoAnalyzeMatches() {
   // Step 3: Generate 5-strategy recommendations
   generateFbRecommendations();
 
+  // Step 4: Populate sidebar AI content
+  const sidebar = $('#fb-ai-sidebar-content');
+  if (sidebar) {
+    const matchesData = getMatches();
+    const withOdds = matchesData.filter(m => m.oddsW > 0 || m.selections?.length > 0);
+    let sidebarHTML = `<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem;">共 ${rows.length} 场 · ${withOdds.length} 场有赔率</div>`;
+    // Show compact recommendations
+    matchesData.filter(m => m.oddsW > 0).forEach(m => {
+      const outcomes = [
+        { label: '胜', odds: m.oddsW, prob: m.oddsW > 0 ? 1 / m.oddsW : 0 },
+        { label: '平', odds: m.oddsD, prob: m.oddsD > 0 ? 1 / m.oddsD : 0 },
+        { label: '负', odds: m.oddsL, prob: m.oddsL > 0 ? 1 / m.oddsL : 0 }
+      ].filter(o => o.odds > 0);
+      const total = outcomes.reduce((s, o) => s + o.prob, 0);
+      const best = outcomes.sort((a, b) => b.prob - a.prob)[0];
+      if (!best) return;
+      const pct = total > 0 ? (best.prob / total * 100).toFixed(0) : '?';
+      const color = pct > 50 ? 'var(--green)' : pct > 35 ? 'var(--yellow)' : 'var(--text-muted)';
+      sidebarHTML += `<div style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.75rem;">
+        <span style="min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${m.team}</span>
+        <span style="color:${color};font-weight:700;min-width:24px;">${best.label}</span>
+        <span style="color:var(--text-muted);font-size:0.7rem;">${pct}%</span>
+      </div>`;
+    });
+    sidebar.innerHTML = sidebarHTML || '<p style="color:var(--text-muted);font-size:0.78rem;text-align:center;padding:1rem;">暂无可分析的赛事</p>';
+  }
+
   showToast('🤖 AI已自动完成赛事分析', 'success');
 }
 
@@ -697,6 +724,13 @@ function analyzeFootball() {
 
   $('#value-bets').innerHTML = fullValueHTML;
   $('#football-results').classList.remove('hidden');
+  // Show sidebar analysis cards
+  const kellyCard = $('#fb-side-kelly-card');
+  const evCard = $('#fb-side-ev-card');
+  const valueCard = $('#fb-side-value-card');
+  if (kellyCard) kellyCard.style.display = '';
+  if (evCard) evCard.style.display = '';
+  if (valueCard) valueCard.style.display = '';
   drawOddsChart(chartData);
   showToast(`${gameName}深度分析完成`, 'success');
 }
@@ -1085,9 +1119,7 @@ function displayLatestPicks(picks) {
 }
 
 $('#btn-fetch-matches').addEventListener('click', fetchFootballMatches);
-$('#btn-load-sample').addEventListener('click', loadSampleMatches);
-$('#btn-add-match').addEventListener('click', () => addMatch('', '', '', ''));
-$('#btn-select-all').addEventListener('click', () => {
+$('#btn-select-all')?.addEventListener('click', () => {
   $$('.match-row').forEach(row => {
     const btns = row.querySelectorAll('.cz-opt-btn');
     if (btns.length >= 3) {
@@ -1103,15 +1135,15 @@ $('#btn-select-all').addEventListener('click', () => {
   });
   updateParlayOptions(); updateBetBar(); showToast('已选择各场最可能结果', 'info');
 });
-$('#btn-clear-selection').addEventListener('click', () => {
+$('#btn-clear-selection')?.addEventListener('click', () => {
   $$('.cz-opt-btn.selected').forEach(b => b.classList.remove('selected'));
   $$('.odds-toggle.selected').forEach(t => t.classList.remove('selected'));
   $$('.match-row.has-selection').forEach(r => r.classList.remove('has-selection'));
   updateParlayOptions(); updateBetBar(); showToast('已清空所有选择', 'info');
 });
-$('#btn-analyze-football').addEventListener('click', analyzeFootball);
-$('#btn-gen-fb-picks').addEventListener('click', generateFbRecommendations);
-$('#btn-compare-fb').addEventListener('click', compareFbPredictions);
+$('#btn-analyze-football')?.addEventListener('click', analyzeFootball);
+$('#btn-gen-fb-picks')?.addEventListener('click', generateFbRecommendations);
+$('#btn-compare-fb')?.addEventListener('click', compareFbPredictions);
 // Game tab switching
 $$('.cz-game-tab').forEach(tab => tab.addEventListener('click', () => {
   $$('.cz-game-tab').forEach(t => t.classList.remove('active'));
@@ -1124,6 +1156,6 @@ if (betMinus) betMinus.addEventListener('click', () => { const v = Math.max(1, (
 if (betPlus) betPlus.addEventListener('click', () => { const v = Math.min(99, (parseInt(betMulti.value) || 1) + 1); betMulti.value = v; updateBetBar(); });
 if (betMulti) betMulti.addEventListener('change', updateBetBar);
 initFbPredictionUI();
-// Auto-load draw results on page init
+// Auto-load draw results and match data on page init
 fetchDrawResults();
-
+setTimeout(() => fetchFootballMatches(), 500);

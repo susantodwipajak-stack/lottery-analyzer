@@ -36,7 +36,7 @@
   <!-- Tab Navigation -->
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="football" id="tab-btn-football">
-      <span><span class="tab-icon">⚽</span>竞彩足球</span>
+      <span><span class="tab-icon">⚽</span>传统足彩</span>
     </button>
     <button class="tab-btn" data-tab="dlt" id="tab-btn-dlt">
       <span><span class="tab-icon">🎱</span>大乐透分析</span>
@@ -49,7 +49,7 @@
     </button>
   </nav>
 
-  <!-- ========== TAB 1: 竞彩足球深度分析 ========== -->
+  <!-- ========== TAB 1: 传统足彩深度分析 ========== -->
   <section class="tab-content active" id="tab-football">
     <!-- Game Type Tabs (official style) -->
     <div class="cz-game-tabs">
@@ -60,76 +60,116 @@
       <span class="cz-max-prize">单注最高奖金 <span class="prize-amount">500 万元</span></span>
     </div>
 
-    <!-- Instructions + AI Picks Side-by-Side -->
-    <div class="fb-top-grid">
-      <div class="fb-top-left">
-        <div class="cz-instructions">
-          玩法提示：以下14场比赛，每场比赛至少选择一个结果；比赛结果以90分钟（含伤停补时，不含加时赛）结果为准。
-        </div>
-        <!-- Period Selector -->
-        <div class="cz-period-bar">
-          <div class="cz-period-tabs">
-            <span class="cz-period-tab active" id="cz-tab-onsale">在售奖期</span>
-            <span class="cz-period-tab" id="cz-tab-upcoming">即将开售</span>
-          </div>
-          <div class="cz-period-chips" id="cz-period-chips"></div>
-          <div class="cz-deadline" id="cz-deadline">投注截止时间：--</div>
-        </div>
+    <!-- ❶ Draw Results Banner (moved to top) -->
+    <div class="card fb-draw-banner" id="draw-results-card">
+      <div class="card-title" style="margin-bottom:0.4rem;">
+        <span class="icon">🏆</span> 开奖结果
+        <div id="draw-period-chips" style="margin-left:auto;display:flex;gap:0.3rem;"></div>
       </div>
-      <div class="fb-top-right">
-        <div class="fb-ai-picks-mini" id="fb-ai-picks-card">
-          <div class="fb-ai-picks-header">
-            <span>🤖 AI推荐</span>
-            <span class="fb-ai-model-tag" id="fb-ai-model-ver">v1</span>
-          </div>
-          <div id="fb-ai-picks-display">
-            <p style="color:var(--text-muted);font-size:0.78rem;text-align:center;padding:0.4rem">加载中...</p>
-          </div>
+      <div id="draw-results-container">
+        <div class="empty-state" style="padding:0.8rem;">
+          <div class="empty-state-desc" style="font-size:0.8rem;">⏳ 自动加载最新开奖...</div>
         </div>
       </div>
     </div>
 
-    <!-- Data Fetch Bar -->
+    <!-- ❷ Instructions + Period + Fetch -->
+    <div class="cz-instructions">
+      玩法提示：以下14场比赛，每场比赛至少选择一个结果；比赛结果以90分钟（含伤停补时，不含加时赛）结果为准。
+    </div>
+    <div class="cz-period-bar">
+      <div class="cz-period-tabs">
+        <span class="cz-period-tab active" id="cz-tab-onsale">在售奖期</span>
+        <span class="cz-period-tab" id="cz-tab-upcoming">即将开售</span>
+      </div>
+      <div class="cz-period-chips" id="cz-period-chips"></div>
+      <div class="cz-deadline" id="cz-deadline">投注截止时间：--</div>
+    </div>
     <div class="cz-fetch-bar">
-      <div style="display:flex;gap:0.5rem;">
-        <button class="btn btn-primary btn-sm" id="btn-fetch-matches">🔄 拉取赛事数据</button>
-        <button class="btn btn-secondary btn-sm" id="btn-load-sample">📥 载入示例</button>
-      </div>
+      <button class="btn btn-primary btn-sm" id="btn-fetch-matches">🔄 拉取赛事数据</button>
       <div id="fb-status" style="font-size:0.78rem;color:var(--text-muted);">
-        💡 点击「拉取赛事数据」从体彩官网获取在售赛事
+        💡 自动获取中...
       </div>
     </div>
 
-    <!-- Official Match Table -->
-    <div class="cz-match-table">
-      <div class="cz-table-header">
-        <span class="cz-th cz-th-no">场次</span>
-        <span class="cz-th cz-th-league">联赛</span>
-        <span class="cz-th cz-th-date">开赛日期</span>
-        <span class="cz-th cz-th-teams">主队 VS 客队</span>
-        <span class="cz-th cz-th-opt" style="color:var(--red);">胜<br><small>3</small></span>
-        <span class="cz-th cz-th-opt">平<br><small>1</small></span>
-        <span class="cz-th cz-th-opt" style="color:var(--blue);">负<br><small>0</small></span>
-        <span class="cz-th cz-th-sp" style="color:var(--red);">胜</span>
-        <span class="cz-th cz-th-sp">平</span>
-        <span class="cz-th cz-th-sp" style="color:var(--blue);">负</span>
-      </div>
-      <div id="match-list">
-        <div class="empty-state" id="match-empty">
-          <div class="empty-state-icon">⚽</div>
-          <div class="empty-state-title">暂无赛事数据</div>
-          <div class="empty-state-desc">拉取赛事数据或载入示例</div>
+    <!-- ❸ Main Layout: 70/30 Split Pane -->
+    <div class="fb-split-layout">
+      <!-- LEFT: Match Table (70%) -->
+      <div class="fb-main-pane">
+        <div class="cz-match-table">
+          <div class="cz-table-header">
+            <span class="cz-th cz-th-no">场次</span>
+            <span class="cz-th cz-th-league">联赛</span>
+            <span class="cz-th cz-th-date">开赛日期</span>
+            <span class="cz-th cz-th-teams">主队 VS 客队</span>
+            <span class="cz-th cz-th-opt" style="color:var(--red);">胜<br><small>3</small></span>
+            <span class="cz-th cz-th-opt">平<br><small>1</small></span>
+            <span class="cz-th cz-th-opt" style="color:var(--blue);">负<br><small>0</small></span>
+            <span class="cz-th cz-th-sp" style="color:var(--red);">胜</span>
+            <span class="cz-th cz-th-sp">平</span>
+            <span class="cz-th cz-th-sp" style="color:var(--blue);">负</span>
+          </div>
+          <div id="match-list">
+            <div class="empty-state" id="match-empty">
+              <div class="empty-state-icon">⚽</div>
+              <div class="empty-state-title">正在加载赛事...</div>
+              <div class="empty-state-desc">自动获取当期14场比赛数据</div>
+            </div>
+          </div>
+          <div class="cz-table-footer">
+            <button class="btn btn-ghost btn-sm" id="btn-select-all">☑ 全选热门</button>
+            <button class="btn btn-ghost btn-sm" id="btn-clear-selection">✕ 清空选项</button>
+            <span id="match-count-label" style="margin-left:auto;font-size:0.78rem;color:var(--text-muted);">0 场比赛</span>
+          </div>
         </div>
       </div>
-      <div class="cz-table-footer">
-        <button class="btn btn-ghost btn-sm" id="btn-select-all">☑ 全选热门</button>
-        <button class="btn btn-ghost btn-sm" id="btn-clear-selection">✕ 清空选项</button>
-        <button class="btn btn-ghost btn-sm" id="btn-add-match">+ 手动添加</button>
-        <span id="match-count-label" style="margin-left:auto;font-size:0.78rem;color:var(--text-muted);">0 场比赛</span>
-      </div>
-    </div>
 
-    <!-- Sticky Bottom Betting Bar -->
+      <!-- RIGHT: AI Analysis Sidebar (30%) -->
+      <div class="fb-side-pane">
+        <!-- AI Unified Recommendation -->
+        <div class="card fb-side-card">
+          <div class="fb-side-card-header">
+            <span style="font-weight:600;font-size:0.9rem;color:var(--text-primary);">🤖 AI 分析面板</span>
+            <button class="btn btn-ghost btn-sm" id="btn-gen-fb-picks" style="padding:0.15rem 0.4rem;font-size:0.72rem;">🎯 生成推荐</button>
+          </div>
+          <div id="fb-ai-sidebar-content">
+            <div style="font-size:0.78rem;color:var(--text-muted);text-align:center;padding:1.5rem 0.5rem;">
+              <span style="display:block;font-size:1.5rem;margin-bottom:0.5rem;opacity:0.5;">🤖</span>
+              加载赛事数据后<br>自动生成AI分析
+            </div>
+          </div>
+        </div>
+
+        <!-- Kelly & EV Summary (compact) -->
+        <div class="card fb-side-card" id="fb-side-kelly-card" style="display:none;">
+          <div class="fb-side-card-header">
+            <span style="font-weight:600;font-size:0.85rem;color:var(--text-primary);">📊 赔率分析</span>
+          </div>
+          <div id="kelly-results" style="max-height:300px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- EV Analysis -->
+        <div class="card fb-side-card" id="fb-side-ev-card" style="display:none;">
+          <div class="fb-side-card-header">
+            <span style="font-weight:600;font-size:0.85rem;color:var(--text-primary);">💰 期望值分析</span>
+          </div>
+          <div id="ev-results" style="max-height:300px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- Value Bets -->
+        <div class="card fb-side-card" id="fb-side-value-card" style="display:none;">
+          <div class="fb-side-card-header">
+            <span style="font-weight:600;font-size:0.85rem;color:var(--text-primary);">🎯 价值投注</span>
+          </div>
+          <div id="value-bets"></div>
+        </div>
+
+        <!-- Compare Button -->
+        <button class="btn btn-secondary btn-sm" id="btn-compare-fb" style="width:100%;margin-top:0.3rem;font-size:0.78rem;">📊 对比开奖</button>
+      </div>
+    </div> <!-- End split layout -->
+
+    <!-- ❹ Sticky Bottom Betting Bar (simplified, no parlay) -->
     <div class="cz-bet-bar">
       <div class="cz-bet-left">
         <span style="font-size:0.8rem;color:var(--text-muted);">倍数</span>
@@ -137,21 +177,15 @@
         <input type="number" class="cz-bet-multi" id="bet-multiple" value="1" min="1" max="99">
         <button class="cz-bet-adj" id="bet-plus">+</button>
         <span style="font-size:0.8rem;margin-left:0.25rem;">倍</span>
-        <!-- Inline parlay selector -->
-        <span class="cz-bet-sep">|</span>
-        <span style="font-size:0.75rem;color:var(--text-muted);">过关:</span>
-        <div class="parlay-options-inline" id="parlay-options">
-          <span style="font-size:0.75rem;color:var(--text-muted)">选择比赛后显示</span>
-        </div>
       </div>
       <div class="cz-bet-right">
         <span>注数 <strong id="cz-bet-count" style="color:var(--cyan);">0</strong></span>
         <span>金额 <strong id="cz-bet-amount" style="color:var(--gold);">¥0</strong></span>
-        <button class="btn btn-primary btn-sm" id="btn-analyze-football">🔍 开始深度分析</button>
+        <button class="btn btn-primary btn-sm" id="btn-analyze-football">📥 计算投注</button>
       </div>
     </div>
 
-    <!-- Compact Analysis Config (collapsible) -->
+    <!-- ❺ Compact Analysis Config (collapsible) -->
     <details class="fb-config-details">
       <summary class="fb-config-summary">⚙️ 高级分析参数</summary>
       <div class="fb-config-inner">
@@ -167,72 +201,22 @@
       </div>
     </details>
 
-    <!-- Football Results -->
+    <!-- Hidden containers for analysis data (used by JS) -->
     <div id="football-results" class="hidden">
-      <!-- Basic Results -->
       <div class="result-panel">
         <div class="result-title">📊 投注概要</div>
         <div class="result-grid" id="fb-summary"></div>
       </div>
-
-      <!-- Kelly & EV Analysis -->
-      <div class="analysis-row mt-2">
-        <div class="card">
-          <div class="card-title"><span class="icon">📈</span> 凯利指数分析</div>
-          <div id="kelly-results"></div>
-        </div>
-        <div class="card">
-          <div class="card-title"><span class="icon">💰</span> 期望值 (EV) 分析</div>
-          <div id="ev-results"></div>
-        </div>
-      </div>
-
-      <!-- Odds Chart -->
-      <div class="card mt-1">
-        <div class="card-title"><span class="icon">📊</span> 赔率概率可视化</div>
-        <div class="chart-container">
-          <canvas id="odds-chart" height="250"></canvas>
-        </div>
-      </div>
-
-      <!-- Value Bet Detection -->
-      <div class="card mt-1">
-        <div class="card-title"><span class="icon">🎯</span> 价值投注 & AI推荐方案</div>
-        <div id="value-bets"></div>
+      <div class="card mt-1" style="display:none;">
+        <div class="chart-container"><canvas id="odds-chart" height="250"></canvas></div>
       </div>
     </div>
 
-    <!-- AI Recommendation System (compact) -->
-    <div class="card fb-rec-card">
-      <div class="card-title">
-        <span class="icon">🤖</span> AI 投注推荐方案
-        <div style="margin-left:auto;display:flex;gap:0.5rem;">
-          <button class="btn btn-primary btn-sm" id="btn-gen-fb-picks">🎯 生成推荐</button>
-          <button class="btn btn-secondary btn-sm" id="btn-compare-fb">📊 对比开奖</button>
-        </div>
-      </div>
-      <div id="fb-picks-status" style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;">
-        💡 基于赔率分析、凯利指数、期望值等多维度生成投注建议
-      </div>
-      <div id="fb-picks-container"></div>
-    </div>
+    <!-- Hidden picks container (used by JS) -->
+    <div id="fb-picks-status" style="display:none;"></div>
+    <div id="fb-picks-container" style="display:none;"></div>
 
-    <!-- Draw Results (开奖结果) -->
-    <div class="card" id="draw-results-card">
-      <div class="card-title">
-        <span class="icon">🏆</span> 开奖结果
-        <div id="draw-period-chips" style="margin-left:auto;display:flex;gap:0.3rem;"></div>
-      </div>
-      <div id="draw-results-container">
-        <div class="empty-state" style="padding:1rem;">
-          <div class="empty-state-icon">🏆</div>
-          <div class="empty-state-title">加载中...</div>
-          <div class="empty-state-desc">拉取赛事数据后自动显示最新开奖</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Archive + Strategy (collapsible) -->
+    <!-- ❻ Archive + Strategy (collapsible) -->
     <details class="fb-archive-details">
       <summary class="fb-archive-summary">📁 推荐存档 & 策略表现 <span id="fb-archive-count" style="margin-left:0.5rem;font-size:0.72rem;color:var(--text-muted);">0 条记录</span></summary>
       <div class="fb-archive-inner">
