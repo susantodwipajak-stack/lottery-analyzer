@@ -279,25 +279,49 @@ function autoAnalyzeMatches() {
   const sidebar = $('#fb-ai-sidebar-content');
   if (sidebar) {
     const matchesData = getMatches();
-    const withOdds = matchesData.filter(m => m.oddsW > 0 && m.oddsD > 0 && m.oddsL > 0);
+    const isSF = currentGameType === 'sf' || currentGameType === 'r9';
+    const withOdds = matchesData.filter(m => {
+      return isSF ? (m.oddsW > 0 && m.oddsD > 0 && m.oddsL > 0) 
+                  : (m.allOutcomes && m.allOutcomes.some(o => o.odds > 0));
+    });
+    
     let sidebarHTML = `<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem;">共 ${rows.length} 场 · ${withOdds.length} 场有赔率</div>`;
 
     if (withOdds.length > 0) {
-      // Use Bayesian-corrected probabilities
-      withOdds.forEach(m => {
-        const probs = getCorrectedProbs(m.oddsW, m.oddsD, m.oddsL, m.league || '');
-        const labels = ['胜', '平', '负'];
-        let bestIdx = 0;
-        probs.forEach((p, i) => { if (p > probs[bestIdx]) bestIdx = i; });
-        const pct = (probs[bestIdx] * 100).toFixed(0);
-        const color = pct > 50 ? 'var(--green)' : pct > 35 ? 'var(--yellow)' : 'var(--text-muted)';
-        const lp = getLeagueParams(m.league || '');
-        sidebarHTML += `<div style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.75rem;">
-          <span style="min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${m.team}</span>
-          <span style="color:${color};font-weight:700;min-width:24px;">${labels[bestIdx]}</span>
-          <span style="color:var(--text-muted);font-size:0.7rem;">${pct}%</span>
-        </div>`;
-      });
+      if (isSF) {
+        // Use Bayesian-corrected probabilities for 1X2 games
+        withOdds.forEach(m => {
+          const probs = getCorrectedProbs(m.oddsW, m.oddsD, m.oddsL, m.league || '');
+          const labels = ['胜', '平', '负'];
+          let bestIdx = 0;
+          probs.forEach((p, i) => { if (p > probs[bestIdx]) bestIdx = i; });
+          const pct = (probs[bestIdx] * 100).toFixed(0);
+          const color = pct > 50 ? 'var(--green)' : pct > 35 ? 'var(--yellow)' : 'var(--text-muted)';
+          sidebarHTML += `<div style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.75rem;">
+            <span style="min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${m.team}</span>
+            <span style="color:${color};font-weight:700;min-width:24px;">${labels[bestIdx]}</span>
+            <span style="color:var(--text-muted);font-size:0.7rem;">${pct}%</span>
+          </div>`;
+        });
+      } else {
+        // For BQC/JQ, just show the highest implied probability outcome
+        withOdds.forEach(m => {
+          let bestOutcome = null, highestProb = 0;
+          m.allOutcomes.forEach(o => {
+            const prob = o.odds > 0 ? 1 / o.odds : 0;
+            if (prob > highestProb) { highestProb = prob; bestOutcome = o; }
+          });
+          if (bestOutcome) {
+            const pct = (highestProb * 100).toFixed(0);
+            const color = pct > 40 ? 'var(--green)' : 'var(--yellow)';
+            sidebarHTML += `<div style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.75rem;">
+              <span style="min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${m.team}</span>
+              <span style="color:${color};font-weight:700;min-width:24px;">${bestOutcome.label}</span>
+              <span style="color:var(--text-muted);font-size:0.7rem;">${pct}%</span>
+            </div>`;
+          }
+        });
+      }
     } else {
       // P0-3: No odds available — show league statistics as fallback
       sidebarHTML += `<div style="padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06);">
