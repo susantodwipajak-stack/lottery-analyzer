@@ -879,9 +879,9 @@ function getFbStrategyPerf() {
 function saveFbStrategyPerf(data) { localStorage.setItem(FB_PERF_KEY, JSON.stringify(data)); }
 function getDefaultFbPerf() {
   return {
-    '保守稳健': { total: 0, correct: 0, weight: 1.0 },
-    '均衡推荐': { total: 0, correct: 0, weight: 1.0 },
-    '激进价值': { total: 0, correct: 0, weight: 1.0 }
+    '保守稳健': { total: 0, correct: 0, weight: 1.0, history: [1.0] },
+    '均衡推荐': { total: 0, correct: 0, weight: 1.0, history: [1.0] },
+    '激进价值': { total: 0, correct: 0, weight: 1.0, history: [1.0] }
   };
 }
 
@@ -1086,6 +1086,10 @@ async function compareFbPredictions() {
       // Evolve weight: good strategies get boosted, bad ones decay
       perf[name].weight = 0.5 + rate; // range: 0.5 - 1.5
     }
+    // Record history for sparkline
+    if (!perf[name].history) perf[name].history = [1.0];
+    perf[name].history.push(perf[name].weight);
+    if (perf[name].history.length > 20) perf[name].history.shift(); // keep last 20
   });
 
   saveFbPredictions(preds);
@@ -1136,19 +1140,33 @@ function renderFbStrategyPerf() {
   const container = $('#fb-strategy-perf');
   const icons = { '保守稳健': '🛡️', '均衡推荐': '⚖️', '激进价值': '🔥' };
 
-  let html = '<table class="data-table"><thead><tr><th>策略</th><th>总预测</th><th>命中</th><th>命中率</th><th>权重</th><th>趋势</th></tr></thead><tbody>';
+  let html = '<table class="data-table"><thead><tr><th>策略</th><th>总预测</th><th>命中</th><th>命中率</th><th>权重</th><th>进化轨迹</th></tr></thead><tbody>';
   Object.entries(perf).forEach(([name, d]) => {
     const rate = d.total > 0 ? (d.correct / d.total * 100).toFixed(1) : '--';
     const rateColor = d.total > 0 ? (d.correct / d.total >= 0.5 ? 'var(--green)' : d.correct / d.total >= 0.33 ? 'var(--gold)' : 'var(--red)') : 'var(--text-muted)';
     const weightBar = `<div style="width:60px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100, d.weight * 66.7)}%;background:var(--cyan);border-radius:3px;"></div></div>`;
-    const trend = d.weight >= 1.0 ? '📈' : d.weight >= 0.8 ? '➡️' : '📉';
+    
+    // Sparkline for trajectory
+    let sparklineHTML = '<span style="color:var(--text-muted)">--</span>';
+    const hist = d.history || [1.0];
+    if (hist.length >= 2) {
+      const minHist = Math.min(...hist) * 0.9;
+      const maxHist = Math.max(...hist) * 1.1;
+      const diff = maxHist - minHist || 1;
+      const w = 50, h = 16;
+      const dx = w / (hist.length - 1);
+      const pts = hist.map((v, i) => `${i * dx},${h - ((v - minHist) / diff) * h}`).join(' ');
+      const strokeColor = hist[hist.length - 1] >= hist[0] ? 'var(--green)' : 'var(--red)';
+      sparklineHTML = `<svg width="${w}" height="${h}" style="overflow:visible;vertical-align:middle;"><polyline points="${pts}" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+
     html += `<tr>
       <td>${icons[name] || ''} ${name}</td>
       <td style="font-family:'JetBrains Mono';text-align:center">${d.total}</td>
       <td style="font-family:'JetBrains Mono';text-align:center">${d.correct}</td>
       <td style="color:${rateColor};font-weight:700;text-align:center">${rate}%</td>
       <td>${weightBar}</td>
-      <td style="text-align:center">${trend}</td>
+      <td style="text-align:center;vertical-align:middle;">${sparklineHTML}</td>
     </tr>`;
   });
   html += '</tbody></table>';
