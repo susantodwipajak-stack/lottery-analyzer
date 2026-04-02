@@ -60,18 +60,19 @@
       <span class="cz-max-prize">单注最高奖金 <span class="prize-amount">500 万元</span></span>
     </div>
 
-    <!-- ❶ Draw Results Banner (moved to top) -->
-    <div class="card fb-draw-banner" id="draw-results-card">
-      <div class="card-title" style="margin-bottom:0.4rem;">
+    <!-- ❶ Draw Results Banner (collapsible, P1-4) -->
+    <details class="fb-draw-details" id="draw-results-card">
+      <summary class="fb-draw-summary">
         <span class="icon">🏆</span> 开奖结果
+        <span id="draw-summary-text" style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem;">⏳ 加载中...</span>
         <div id="draw-period-chips" style="margin-left:auto;display:flex;gap:0.3rem;"></div>
-      </div>
-      <div id="draw-results-container">
-        <div class="empty-state" style="padding:0.8rem;">
+      </summary>
+      <div id="draw-results-container" style="padding:0.5rem 0.75rem;">
+        <div class="empty-state" style="padding:0.5rem;">
           <div class="empty-state-desc" style="font-size:0.8rem;">⏳ 自动加载最新开奖...</div>
         </div>
       </div>
-    </div>
+    </details>
 
     <!-- ❷ Instructions + Period + Fetch -->
     <div class="cz-instructions">

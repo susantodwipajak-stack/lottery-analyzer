@@ -1,9 +1,75 @@
 // =============================================
-// SECTION 1: 竞彩足球深度分析
+// SECTION 1: 传统足彩深度分析 (V2.0 — 贝叶斯+联赛引擎)
 // =============================================
 let matchCount = 0;
 let matchData = [];
 let currentGameType = 'sf'; // sf | r9 | bqc | jq
+let _modelParams = null; // loaded from data/model-params.json
+
+// ========== V2.0 engine: Bayesian smoothing ==========
+function bayesianSmooth(rawProbs, prior = [0.36, 0.28, 0.36], strength = 5) {
+  const n = 100;
+  return rawProbs.map((p, i) => {
+    const smoothed = (p * n + prior[i] * strength) / (n + strength);
+    return Math.max(0.05, smoothed);
+  });
+}
+
+// ========== V2.0 engine: League-specific parameters ==========
+const LEAGUE_DEFAULTS = {
+  '英超': { homeAdv: 0.10, drawBias: 0.01, avgGoals: 2.85 },
+  '德甲': { homeAdv: 0.09, drawBias: 0.01, avgGoals: 3.05 },
+  '西甲': { homeAdv: 0.11, drawBias: 0.03, avgGoals: 2.55 },
+  '意甲': { homeAdv: 0.07, drawBias: 0.04, avgGoals: 2.35 },
+  '法甲': { homeAdv: 0.09, drawBias: 0.03, avgGoals: 2.50 },
+  '中超': { homeAdv: 0.12, drawBias: 0.02, avgGoals: 2.40 },
+  '日职': { homeAdv: 0.08, drawBias: 0.03, avgGoals: 2.60 },
+  '韩K':  { homeAdv: 0.09, drawBias: 0.02, avgGoals: 2.45 },
+  '国际': { homeAdv: 0.06, drawBias: 0.04, avgGoals: 2.30 },
+  'default': { homeAdv: 0.08, drawBias: 0.02, avgGoals: 2.50 }
+};
+
+function getLeagueParams(league) {
+  const learned = _modelParams?.leagueParams || {};
+  if (learned[league]) return learned[league];
+  for (const key of Object.keys(LEAGUE_DEFAULTS)) {
+    if (league && league.includes(key)) return LEAGUE_DEFAULTS[key];
+  }
+  return LEAGUE_DEFAULTS['default'];
+}
+
+// Compute corrected probabilities (Bayesian + league adjustment)
+function getCorrectedProbs(oddsW, oddsD, oddsL, league) {
+  const odds = [oddsW, oddsD, oddsL];
+  const ipRaw = odds.map(o => o > 0 ? 1 / o : 0);
+  const margin = ipRaw.reduce((a, b) => a + b, 0);
+  if (margin <= 0) return [0.33, 0.34, 0.33];
+  const fairRaw = ipRaw.map(p => p / margin);
+  const fair = bayesianSmooth(fairRaw);
+  const lp = getLeagueParams(league);
+  const adj = [
+    fair[0] * (1 + lp.homeAdv),
+    fair[1] * (1 + lp.drawBias * 2),
+    fair[2] * (1 - lp.homeAdv * 0.5)
+  ];
+  const adjSum = adj.reduce((a, b) => a + b, 0);
+  return adj.map(p => Math.max(0.05, p / adjSum));
+}
+
+// Load model params from data/model-params.json
+async function loadModelParams() {
+  try {
+    const resp = await fetch('data/model-params.json?t=' + Date.now(), { signal: AbortSignal.timeout(5000) });
+    if (resp.ok) _modelParams = await resp.json();
+  } catch { /* use defaults */ }
+}
+
+// 3 strategies (unified with backend)
+const FB_STRATEGIES = [
+  { id: 'conservative', name: '🛡️ 保守稳健', desc: '偏向概率最高项', weights: { kelly: 0.15, ev: 0.20, implied: 0.65 } },
+  { id: 'balanced',     name: '⚖️ 均衡推荐', desc: '综合Kelly/EV/概率', weights: { kelly: 0.35, ev: 0.35, implied: 0.30 } },
+  { id: 'aggressive',   name: '🔥 激进价值', desc: '追求高EV和Kelly', weights: { kelly: 0.45, ev: 0.40, implied: 0.15 } }
+];
 
 const GAME_CONFIG = {
   sf: {
@@ -206,34 +272,58 @@ function autoAnalyzeMatches() {
   // Step 2: Run deep analysis (Kelly, EV, charts)
   analyzeFootball();
 
-  // Step 3: Generate 5-strategy recommendations
+  // Step 3: Generate 3-strategy recommendations
   generateFbRecommendations();
 
-  // Step 4: Populate sidebar AI content
+  // Step 4: Populate sidebar AI content (P0-3: handle no-odds state)
   const sidebar = $('#fb-ai-sidebar-content');
   if (sidebar) {
     const matchesData = getMatches();
-    const withOdds = matchesData.filter(m => m.oddsW > 0 || m.selections?.length > 0);
+    const withOdds = matchesData.filter(m => m.oddsW > 0 && m.oddsD > 0 && m.oddsL > 0);
     let sidebarHTML = `<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem;">共 ${rows.length} 场 · ${withOdds.length} 场有赔率</div>`;
-    // Show compact recommendations
-    matchesData.filter(m => m.oddsW > 0).forEach(m => {
-      const outcomes = [
-        { label: '胜', odds: m.oddsW, prob: m.oddsW > 0 ? 1 / m.oddsW : 0 },
-        { label: '平', odds: m.oddsD, prob: m.oddsD > 0 ? 1 / m.oddsD : 0 },
-        { label: '负', odds: m.oddsL, prob: m.oddsL > 0 ? 1 / m.oddsL : 0 }
-      ].filter(o => o.odds > 0);
-      const total = outcomes.reduce((s, o) => s + o.prob, 0);
-      const best = outcomes.sort((a, b) => b.prob - a.prob)[0];
-      if (!best) return;
-      const pct = total > 0 ? (best.prob / total * 100).toFixed(0) : '?';
-      const color = pct > 50 ? 'var(--green)' : pct > 35 ? 'var(--yellow)' : 'var(--text-muted)';
-      sidebarHTML += `<div style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.75rem;">
-        <span style="min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${m.team}</span>
-        <span style="color:${color};font-weight:700;min-width:24px;">${best.label}</span>
-        <span style="color:var(--text-muted);font-size:0.7rem;">${pct}%</span>
+
+    if (withOdds.length > 0) {
+      // Use Bayesian-corrected probabilities
+      withOdds.forEach(m => {
+        const probs = getCorrectedProbs(m.oddsW, m.oddsD, m.oddsL, m.league || '');
+        const labels = ['胜', '平', '负'];
+        let bestIdx = 0;
+        probs.forEach((p, i) => { if (p > probs[bestIdx]) bestIdx = i; });
+        const pct = (probs[bestIdx] * 100).toFixed(0);
+        const color = pct > 50 ? 'var(--green)' : pct > 35 ? 'var(--yellow)' : 'var(--text-muted)';
+        const lp = getLeagueParams(m.league || '');
+        sidebarHTML += `<div style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.75rem;">
+          <span style="min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${m.team}</span>
+          <span style="color:${color};font-weight:700;min-width:24px;">${labels[bestIdx]}</span>
+          <span style="color:var(--text-muted);font-size:0.7rem;">${pct}%</span>
+        </div>`;
+      });
+    } else {
+      // P0-3: No odds available — show league statistics as fallback
+      sidebarHTML += `<div style="padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:0.78rem;color:var(--gold);margin-bottom:0.4rem;">⚠️ 赔率尚未公布</div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem;">当前赛事赔率未开放，以下为各联赛历史统计参考</div>
       </div>`;
-    });
-    sidebar.innerHTML = sidebarHTML || '<p style="color:var(--text-muted);font-size:0.78rem;text-align:center;padding:1rem;">暂无可分析的赛事</p>';
+      // Show league stats from LEAGUE_DEFAULTS
+      const leaguesSeen = new Set();
+      matchesData.forEach(m => {
+        const league = m.league || '未知';
+        if (leaguesSeen.has(league)) return;
+        leaguesSeen.add(league);
+        const lp = getLeagueParams(league);
+        const homeRate = (0.40 + lp.homeAdv) * 100;
+        const drawRate = (0.28 + lp.drawBias) * 100;
+        const awayRate = Math.max(0, 100 - homeRate - drawRate);
+        sidebarHTML += `<div style="padding:0.3rem 0;border-bottom:1px solid rgba(255,255,255,0.03);font-size:0.72rem;">
+          <span style="font-weight:600;color:var(--text-secondary);min-width:40px;display:inline-block;">${league}</span>
+          <span style="color:var(--red);">主胜${homeRate.toFixed(0)}%</span>
+          <span style="color:var(--yellow);">平${drawRate.toFixed(0)}%</span>
+          <span style="color:var(--blue);">客胜${awayRate.toFixed(0)}%</span>
+          <span style="color:var(--text-muted);margin-left:0.2rem;">均${lp.avgGoals}球</span>
+        </div>`;
+      });
+    }
+    sidebar.innerHTML = sidebarHTML;
   }
 
   showToast('🤖 AI已自动完成赛事分析', 'success');
@@ -418,6 +508,13 @@ function renderDrawResults(item) {
   if (!container || !item) return;
   const results = (item.lotteryDrawResult || '').split(' ');
   const resultLabels = { '3': '胜', '1': '平', '0': '负' };
+
+  // P1-4: Update collapsed summary text
+  const summaryText = $('#draw-summary-text');
+  if (summaryText) {
+    const balls = results.map(r => r === '3' ? '🔴' : r === '0' ? '🔵' : '🟡').join('');
+    summaryText.innerHTML = `第${item.lotteryDrawNum}期 ${balls}`;
+  }
   const resultColors = { '3': '#e74c3c', '1': '#f39c12', '0': '#00bcd4' };
 
   let matchesHtml = '';
@@ -624,6 +721,7 @@ function updateParlayOptions() {
 function calcKelly(odds, prob) { const b = odds - 1, q = 1 - prob; return b <= 0 ? 0 : (b * prob - q) / b; }
 function calcEV(odds, prob) { return odds * prob - 1; }
 function impliedProb(odds) { return odds > 0 ? 1 / odds : 0; }
+function factorial(n) { return n <= 1 ? 1 : n * factorial(n - 1); }
 
 function analyzeFootball() {
   const matches = getMatches();
@@ -674,9 +772,16 @@ function analyzeFootball() {
 
     if (outcomes.length === 0) return;
 
+    // V2.0: Use corrected probabilities (Bayesian + league), not same-source odds
     const impProbs = outcomes.map(o => impliedProb(o.odds));
     const margin = impProbs.reduce((a, b) => a + b, 0);
-    const fairProbs = impProbs.map(p => margin > 0 ? p / margin : 0);
+    // For sf/r9 games with 3 outcomes, use full Bayesian correction
+    let fairProbs;
+    if (outcomes.length === 3 && m.oddsW > 0 && m.oddsD > 0 && m.oddsL > 0) {
+      fairProbs = getCorrectedProbs(m.oddsW, m.oddsD, m.oddsL, m.league || '');
+    } else {
+      fairProbs = impProbs.map(p => margin > 0 ? p / margin : 0);
+    }
 
     // Per-match recommendation: find best value
     let bestEV = -Infinity, bestOutcome = null, bestProb = 0;
@@ -774,15 +879,13 @@ function getFbStrategyPerf() {
 function saveFbStrategyPerf(data) { localStorage.setItem(FB_PERF_KEY, JSON.stringify(data)); }
 function getDefaultFbPerf() {
   return {
-    '价值投注': { total: 0, correct: 0, weight: 1.0 },
-    '凯利最优': { total: 0, correct: 0, weight: 1.0 },
-    '概率优先': { total: 0, correct: 0, weight: 1.0 },
-    '保守稳健': { total: 0, correct: 0, weight: 0.8 },
-    '激进冲奖': { total: 0, correct: 0, weight: 0.6 }
+    '保守稳健': { total: 0, correct: 0, weight: 1.0 },
+    '均衡推荐': { total: 0, correct: 0, weight: 1.0 },
+    '激进价值': { total: 0, correct: 0, weight: 1.0 }
   };
 }
 
-// Generate recommendations for current matches
+// Generate recommendations using V2.0 3-strategy engine
 function generateFbRecommendations() {
   const matches = getMatches();
   if (matches.length < 2) { showToast('至少需要2场比赛才能生成推荐', 'warning'); return; }
@@ -793,61 +896,53 @@ function generateFbRecommendations() {
   const perf = getFbStrategyPerf();
   const strategies = {};
 
-  // Strategy 1: Value Bet (EV > 0 picks)
-  strategies['价值投注'] = validMatches.map(m => {
-    const outcomes = [{ type: '胜', odds: m.oddsW }, { type: '平', odds: m.oddsD }, { type: '负', odds: m.oddsL }];
-    const impProbs = outcomes.map(o => impliedProb(o.odds));
-    const margin = impProbs.reduce((a, b) => a + b, 0);
-    const fairProbs = impProbs.map(p => p / margin);
-    let bestEV = -Infinity, bestPick = outcomes[0];
-    outcomes.forEach((o, i) => { const ev = calcEV(o.odds, fairProbs[i]); if (ev > bestEV) { bestEV = ev; bestPick = o; } });
-    return { team: m.team, pick: bestPick.type, odds: bestPick.odds, confidence: Math.min(99, Math.max(30, 50 + bestEV * 200)) };
-  });
+  // V2.0: 3 strategies with Bayesian-corrected probabilities
+  for (const strat of FB_STRATEGIES) {
+    const w = strat.weights;
+    strategies[strat.name.replace(/[^\u4e00-\u9fff]/g, '')] = validMatches.map(m => {
+      const odds = [m.oddsW, m.oddsD, m.oddsL];
+      const probs = getCorrectedProbs(m.oddsW, m.oddsD, m.oddsL, m.league || '');
+      const ipRaw = odds.map(impliedProb);
+      const margin = ipRaw.reduce((a, b) => a + b, 0);
+      const marketProbs = ipRaw.map(p => margin > 0 ? p / margin : 0.33);
 
-  // Strategy 2: Kelly Optimal
-  strategies['凯利最优'] = validMatches.map(m => {
-    const outcomes = [{ type: '胜', odds: m.oddsW }, { type: '平', odds: m.oddsD }, { type: '负', odds: m.oddsL }];
-    const impProbs = outcomes.map(o => impliedProb(o.odds));
-    const margin = impProbs.reduce((a, b) => a + b, 0);
-    const fairProbs = impProbs.map(p => p / margin);
-    let bestKelly = -Infinity, bestPick = outcomes[0];
-    outcomes.forEach((o, i) => { const k = calcKelly(o.odds, fairProbs[i]); if (k > bestKelly) { bestKelly = k; bestPick = o; } });
-    return { team: m.team, pick: bestPick.type, odds: bestPick.odds, confidence: Math.min(99, Math.max(30, 50 + bestKelly * 300)) };
-  });
+      const outcomes = ['胜', '平', '负'].map((label, i) => {
+        const kelly = calcKelly(odds[i], probs[i]);
+        const ev = calcEV(odds[i], probs[i]);
+        const edge = probs[i] - marketProbs[i];
+        return { label, odds: odds[i], prob: probs[i], kelly: Math.max(0, kelly), ev: Math.max(0, ev), edge };
+      });
 
-  // Strategy 3: Probability Priority (lowest odds = highest prob)
-  strategies['概率优先'] = validMatches.map(m => {
-    const outcomes = [{ type: '胜', odds: m.oddsW }, { type: '平', odds: m.oddsD }, { type: '负', odds: m.oddsL }];
-    let best = outcomes[0];
-    outcomes.forEach(o => { if (o.odds < best.odds) best = o; });
-    return { team: m.team, pick: best.type, odds: best.odds, confidence: Math.min(95, Math.max(40, (1 / best.odds) * 100 + 10)) };
-  });
+      // Normalize and combine
+      const kMax = Math.max(0.001, ...outcomes.map(r => r.kelly));
+      const eMax = Math.max(0.001, ...outcomes.map(r => r.ev));
+      const pMax = Math.max(0.001, ...outcomes.map(r => r.prob));
+      const edgeMax = Math.max(0.001, ...outcomes.map(r => Math.abs(r.edge)));
 
-  // Strategy 4: Conservative (pick home win if odds < 2.0, else draw)
-  strategies['保守稳健'] = validMatches.map(m => {
-    let pick, odds;
-    if (m.oddsW <= 1.8) { pick = '胜'; odds = m.oddsW; }
-    else if (m.oddsD <= 3.0) { pick = '平'; odds = m.oddsD; }
-    else { const best = Math.min(m.oddsW, m.oddsD, m.oddsL); pick = best === m.oddsW ? '胜' : best === m.oddsD ? '平' : '负'; odds = best; }
-    return { team: m.team, pick, odds, confidence: Math.min(85, Math.max(35, (1 / odds) * 80)) };
-  });
+      const scored = outcomes.map(r => {
+        const kn = r.kelly / kMax;
+        const en = r.ev / eMax;
+        const pn = r.prob / pMax;
+        const kOr = kn > 0 ? kn : (r.edge > 0 ? r.edge / edgeMax : 0);
+        const eOr = en > 0 ? en : (r.edge > 0 ? r.edge / edgeMax * 0.5 : 0);
+        return { ...r, score: w.kelly * kOr + w.ev * eOr + w.implied * pn };
+      });
+      scored.sort((a, b) => b.score - a.score);
+      const best = scored[0];
+      return {
+        team: m.team, pick: best.label, odds: best.odds,
+        confidence: Math.min(95, Math.max(25, Math.round(best.prob * 100 + best.score * 20))),
+        strategyId: strat.id
+      };
+    });
+  }
 
-  // Strategy 5: Aggressive (pick high odds value bets for big payout)
-  strategies['激进冲奖'] = validMatches.map(m => {
-    const outcomes = [{ type: '胜', odds: m.oddsW }, { type: '平', odds: m.oddsD }, { type: '负', odds: m.oddsL }];
-    // Find the middle odds (not the favorite, not the longest shot)
-    outcomes.sort((a, b) => a.odds - b.odds);
-    const pick = outcomes[1] || outcomes[0]; // middle odds
-    return { team: m.team, pick: pick.type, odds: pick.odds, confidence: Math.min(70, Math.max(25, 30 + (1 / pick.odds) * 50)) };
-  });
-
-  // Apply adaptive weights
+  // Apply adaptive weights from evolution
   Object.keys(strategies).forEach(name => {
     const w = perf[name]?.weight || 1.0;
-    strategies[name].forEach(p => p.confidence = Math.round(p.confidence * w));
+    strategies[name].forEach(p => p.confidence = Math.min(99, Math.round(p.confidence * w)));
   });
 
-  // Render picks
   renderFbPicks(strategies, validMatches);
 
   // Archive
@@ -855,9 +950,9 @@ function generateFbRecommendations() {
     date: new Date().toISOString().split('T')[0],
     time: new Date().toTimeString().substring(0, 5),
     matchCount: validMatches.length,
-    matches: validMatches.map(m => ({ team: m.team, oddsW: m.oddsW, oddsD: m.oddsD, oddsL: m.oddsL })),
+    matches: validMatches.map(m => ({ team: m.team, league: m.league, oddsW: m.oddsW, oddsD: m.oddsD, oddsL: m.oddsL })),
     strategies,
-    result: null // filled after comparison
+    result: null
   };
   const preds = getFbPredictions();
   preds.unshift(prediction);
@@ -865,13 +960,14 @@ function generateFbRecommendations() {
   saveFbPredictions(preds);
   renderFbArchive();
   showToast('推荐方案已生成并存档', 'success');
-  $('#fb-picks-status').innerHTML = `<span style="color:var(--green)">✅ 已生成 5 套策略方案（${validMatches.length} 场比赛）</span>`;
+  const statusEl = $('#fb-picks-status');
+  if (statusEl) statusEl.innerHTML = `<span style="color:var(--green)">✅ 已生成 3 套策略方案（${validMatches.length} 场比赛）</span>`;
 }
 
 function renderFbPicks(strategies, matches) {
   const container = $('#fb-picks-container');
-  const icons = { '价值投注': '💎', '凯利最优': '📈', '保守稳健': '🛡️', '概率优先': '🎯', '激进冲奖': '🔥' };
-  const colors = { '价值投注': 'var(--cyan)', '凯利最优': 'var(--green)', '概率优先': 'var(--blue)', '保守稳健': 'var(--gold)', '激进冲奖': 'var(--red)' };
+  const icons = { '保守稳健': '🛡️', '均衡推荐': '⚖️', '激进价值': '🔥' };
+  const colors = { '保守稳健': 'var(--gold)', '均衡推荐': 'var(--cyan)', '激进价值': 'var(--red)' };
   let html = '';
   Object.entries(strategies).forEach(([name, picks]) => {
     const icon = icons[name] || '📋';
@@ -893,7 +989,7 @@ function renderFbPicks(strategies, matches) {
     });
     html += `</div></div>`;
   });
-  container.innerHTML = html;
+  if (container) container.innerHTML = html;
 }
 
 // Compare predictions with actual results
@@ -1038,7 +1134,7 @@ function renderFbArchive() {
 function renderFbStrategyPerf() {
   const perf = getFbStrategyPerf();
   const container = $('#fb-strategy-perf');
-  const icons = { '价值投注': '💎', '凯利最优': '📈', '概率优先': '🎯', '保守稳健': '🛡️', '激进冲奖': '🔥' };
+  const icons = { '保守稳健': '🛡️', '均衡推荐': '⚖️', '激进价值': '🔥' };
 
   let html = '<table class="data-table"><thead><tr><th>策略</th><th>总预测</th><th>命中</th><th>命中率</th><th>权重</th><th>趋势</th></tr></thead><tbody>';
   Object.entries(perf).forEach(([name, d]) => {
@@ -1156,6 +1252,7 @@ if (betMinus) betMinus.addEventListener('click', () => { const v = Math.max(1, (
 if (betPlus) betPlus.addEventListener('click', () => { const v = Math.min(99, (parseInt(betMulti.value) || 1) + 1); betMulti.value = v; updateBetBar(); });
 if (betMulti) betMulti.addEventListener('change', updateBetBar);
 initFbPredictionUI();
-// Auto-load draw results and match data on page init
+// Auto-load model params, draw results and match data on page init
+loadModelParams();
 fetchDrawResults();
 setTimeout(() => fetchFootballMatches(), 500);

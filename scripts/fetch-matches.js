@@ -73,19 +73,28 @@ const SOURCES = [
     }
 ];
 
-// ---- 带重试的 fetch ----
-async function fetchWithRetry(url, retries = 3) {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const resp = await fetch(url, {
-                signal: AbortSignal.timeout(15000),
-                headers: HEADERS
-            });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            return await resp.json();
-        } catch (e) {
-            console.log(`  ⚠️ 第${i + 1}次失败: ${e.message}`);
-            if (i < retries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+// ---- CORS Proxy fallbacks for GitHub Actions (sporttery.cn blocks GitHub IPs) ----
+const CORS_PROXIES = [
+    '',  // Direct first
+    'https://api.allorigins.win/raw?url=',
+    'https://corsproxy.io/?',
+];
+
+// ---- 带重试 + proxy fallback 的 fetch ----
+async function fetchWithRetry(url, retries = 2) {
+    for (const proxy of CORS_PROXIES) {
+        const targetUrl = proxy ? proxy + encodeURIComponent(url) : url;
+        for (let i = 0; i < retries; i++) {
+            try {
+                const opts = { signal: AbortSignal.timeout(15000) };
+                if (!proxy) opts.headers = HEADERS; // Only add headers for direct requests
+                const resp = await fetch(targetUrl, opts);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                return await resp.json();
+            } catch (e) {
+                console.log(`  ⚠️ ${proxy ? 'proxy' : 'direct'} 第${i + 1}次失败: ${e.message}`);
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+            }
         }
     }
     return null;
@@ -107,12 +116,12 @@ async function main() {
         const matches = src.extract(json);
         if (!matches || matches.length === 0) { console.log(`  ❌ ${src.name} 解析失败\n`); continue; }
 
-        // Filter out matches with all zero odds
-        const valid = matches.filter(m => m.home !== '主队' && (m.oddsW > 0 || m.oddsD > 0 || m.oddsL > 0));
+        // P0-2: Accept matches even without odds (new period not yet priced)
+        const valid = matches.filter(m => m.home !== '主队');
         console.log(`  ✅ ${src.name}: 获取 ${matches.length} 场，有效 ${valid.length} 场\n`);
 
         if (valid.length > 0) {
-            allMatches = valid; // Use first successful source
+            allMatches = valid;
             break;
         }
     }
