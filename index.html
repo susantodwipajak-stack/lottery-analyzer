@@ -244,16 +244,18 @@
   <!-- ========== TAB 2: 大乐透深度分析 ========== -->
   <section class="tab-content" id="tab-dlt">
     <!-- ❶ Latest DLT Draw Banner -->
-    <div id="dlt-latest-banner" class="card" style="border-left:3px solid var(--red);">
-      <div class="card-title" style="margin-bottom:0.5rem;"><span class="icon">🔴</span> 上期开奖结果</div>
-      <div id="dlt-latest-content">
+    <details id="dlt-latest-banner" class="card cz-details-card" style="border-left:3px solid var(--red);">
+      <summary class="cz-summary" style="font-weight:700;display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;cursor:pointer;">
+        <span class="icon">🏆</span> <span id="dlt-latest-summary-text" style="color:var(--text-secondary);">上期开奖结果</span>
+      </summary>
+      <div id="dlt-latest-content" style="margin-top:0.8rem;border-top:1px dashed rgba(255,255,255,0.1);padding-top:0.8rem;">
         <div class="skeleton-group">
           <div class="skeleton" style="width:50%;height:18px;margin-bottom:8px;"></div>
           <div class="skeleton" style="width:100%;height:44px;margin-bottom:8px;"></div>
           <div class="skeleton" style="width:70%;height:14px;"></div>
         </div>
       </div>
-    </div>
+    </details>
 
     <div class="dlt-dashboard-layout">
       <!-- 70% MAIN PANE (Data & Analysis) -->

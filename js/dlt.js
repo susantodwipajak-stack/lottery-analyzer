@@ -16,31 +16,35 @@ class LotteryCart {
       if (ball) {
         const n = parseInt(ball.dataset.num);
         const zone = ball.dataset.zone;
-        this.addBall(n, zone);
-        
-        // Add flying animation effect
-        const rect = ball.getBoundingClientRect();
-        const clone = ball.cloneNode(true);
-        clone.style.position = 'fixed';
-        clone.style.left = rect.left + 'px';
-        clone.style.top = rect.top + 'px';
-        clone.style.zIndex = 9999;
-        clone.style.transition = 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-        clone.style.pointerEvents = 'none';
-        document.body.appendChild(clone);
-        
-        // Target is the bet slip summary area
-        const target = document.getElementById('bet-slip-count');
-        const targetRect = target ? target.getBoundingClientRect() : {left: window.innerWidth - 50, top: 100};
-        
-        setTimeout(() => {
-          clone.style.transform = 'scale(0.3)';
-          clone.style.left = targetRect.left + 'px';
-          clone.style.top = targetRect.top + 'px';
-          clone.style.opacity = 0;
-        }, 10);
-        
-        setTimeout(() => clone.remove(), 500);
+        if (this[zone].has(n)) {
+          this.removeBall(n, zone);
+        } else {
+          this.addBall(n, zone);
+          
+          // Add flying animation effect
+          const rect = ball.getBoundingClientRect();
+          const clone = ball.cloneNode(true);
+          clone.style.position = 'fixed';
+          clone.style.left = rect.left + 'px';
+          clone.style.top = rect.top + 'px';
+          clone.style.zIndex = 9999;
+          clone.style.transition = 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+          clone.style.pointerEvents = 'none';
+          document.body.appendChild(clone);
+          
+          // Target is the bet slip summary area
+          const target = document.getElementById('bet-slip-count');
+          const targetRect = target ? target.getBoundingClientRect() : {left: window.innerWidth - 50, top: 100};
+          
+          setTimeout(() => {
+            clone.style.transform = 'scale(0.3)';
+            clone.style.left = targetRect.left + 'px';
+            clone.style.top = targetRect.top + 'px';
+            clone.style.opacity = 0;
+          }, 10);
+          
+          setTimeout(() => clone.remove(), 500);
+        }
       }
     });
 
@@ -121,13 +125,13 @@ class LotteryCart {
 
     // Render front
     frontPool.innerHTML = Array.from(this.front).sort((a,b)=>a-b).map(n => 
-      `<div class="bet-slip-item" onclick="window.dltCart.removeBall(${n}, 'front')" style="padding:0.2rem 0.4rem;background:var(--red);color:#fff;border-radius:4px;font-size:0.75rem;font-weight:bold;">${String(n).padStart(2,'0')} ✕</div>`
+      `<div class="bet-slip-item" onclick="window.dltCart.removeBall(${n}, 'front')" style="padding:0.3rem 0.5rem;background:var(--red);color:#fff;border-radius:4px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:inline-flex;align-items:center;gap:0.2rem;" title="点击移除">${String(n).padStart(2,'0')} <span style="font-size:0.6rem;opacity:0.7;">✕</span></div>`
     ).join('');
     document.getElementById('slip-front-count').textContent = this.front.size;
 
     // Render back
     backPool.innerHTML = Array.from(this.back).sort((a,b)=>a-b).map(n => 
-      `<div class="bet-slip-item" onclick="window.dltCart.removeBall(${n}, 'back')" style="padding:0.2rem 0.4rem;background:var(--blue);color:#fff;border-radius:4px;font-size:0.75rem;font-weight:bold;">${String(n).padStart(2,'0')} ✕</div>`
+      `<div class="bet-slip-item" onclick="window.dltCart.removeBall(${n}, 'back')" style="padding:0.3rem 0.5rem;background:var(--blue);color:#fff;border-radius:4px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:inline-flex;align-items:center;gap:0.2rem;" title="点击移除">${String(n).padStart(2,'0')} <span style="font-size:0.6rem;opacity:0.7;">✕</span></div>`
     ).join('');
     document.getElementById('slip-back-count').textContent = this.back.size;
     
@@ -1193,6 +1197,12 @@ function updateStrategyPerf(stratId, hit) {
     const LEVEL_RANK = { '一等奖':7,'二等奖':6,'三等奖':5,'四等奖':4,'五等奖':3,'六等奖':2,'七等奖':1,'未中奖':0 };
     if ((LEVEL_RANK[hit.dantuo.bestLevel] || 0) > (LEVEL_RANK[p.dtBestLevel] || 0)) p.dtBestLevel = hit.dantuo.bestLevel;
   }
+  // Store hit rate history for sparkline
+  if (!p.history) p.history = [(hit.frontHits/5 + hit.backHits/2)/2];
+  else {
+    p.history.push((hit.frontHits/5 + hit.backHits/2)/2);
+    if (p.history.length > 20) p.history.shift();
+  }
   saveStrategyPerf(perf);
 }
 
@@ -1482,13 +1492,38 @@ function renderPerfDashboard() {
   const el = $('#strategy-performance');
   if (!el) return;
   if (Object.keys(perf).length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-title">暂无策略数据</div><div class="empty-state-desc">生成预测并对比开奖结果后，此处将展示各策略的命中率</div></div>'; return; }
-  let html = '<table class="data-table"><thead><tr><th>策略</th><th>预测次数</th><th>平均前区</th><th>平均后区</th><th>单式最佳</th><th>复式最佳</th><th>胆拖最佳</th></tr></thead><tbody>';
+
+  const tips = {
+    'adaptive': '基于贝叶斯平滑，结合历史各策略胜率动态调配权重',
+    'pattern': '模式匹配，通过马尔可夫链计算近期相似走势',
+    'hot': '捕捉近期频繁开出的热号，适合追踪连号',
+    'balanced': '均衡奇偶、大小、区间分布，最平稳的推荐',
+    'random': '无历史干扰的纯随机挑选，作为基准参照'
+  };
+
+  let html = '<table class="data-table" style="font-size:0.75rem;"><thead><tr><th style="min-width:100px;">策略</th><th>预测次数</th><th>平均前区</th><th>平均后区</th><th>单式最佳</th><th>复式最佳</th><th>胆拖最佳</th><th>进化轨迹</th></tr></thead><tbody>';
   PRED_STRATEGIES.forEach(s => {
     const p = perf[s.id];
-    if (!p || p.total === 0) { html += `<tr><td>${s.name}</td><td>0</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`; return; }
+    const tooltip = tips[s.id] || '';
+    if (!p || p.total === 0) { html += `<tr><td title="${tooltip}" style="cursor:help;">${s.name}</td><td>0</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td style="color:var(--text-muted)">--</td></tr>`; return; }
     const avgF = (p.totalFrontHits / p.total).toFixed(1), avgB = (p.totalBackHits / p.total).toFixed(1);
     const fColor = parseFloat(avgF) >= 2 ? 'var(--green)' : parseFloat(avgF) >= 1.5 ? 'var(--yellow)' : 'var(--text-muted)';
-    html += `<tr><td>${s.name}</td><td>${Math.round(p.total)}</td><td style="color:${fColor};font-weight:700;">${avgF}/5</td><td style="font-weight:700;">${avgB}/2</td><td style="color:var(--gold)">${p.bestFront}+${p.bestBack}</td><td style="color:var(--purple,#9b59b6)">${p.compBestLevel || '-'}</td><td style="color:var(--yellow)">${p.dtBestLevel || '-'}</td></tr>`;
+    
+    // Sparkline
+    let sparklineHTML = '<span style="color:var(--text-muted)">--</span>';
+    const hist = p.history || [];
+    if (hist.length >= 2) {
+      const minHist = Math.min(...hist) * 0.9;
+      const maxHist = Math.max(...hist) * 1.1;
+      const diff = maxHist - minHist || 1;
+      const w = 50, h = 16;
+      const dx = w / (hist.length - 1);
+      const pts = hist.map((v, i) => `${i * dx},${h - ((v - minHist) / diff) * h}`).join(' ');
+      const strokeColor = hist[hist.length - 1] >= hist[0] ? 'var(--green)' : 'var(--red)';
+      sparklineHTML = `<svg width="${w}" height="${h}" style="overflow:visible;vertical-align:middle;"><polyline points="${pts}" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+
+    html += `<tr><td title="${tooltip}" style="cursor:help;">${s.name}</td><td>${Math.round(p.total)}</td><td style="color:${fColor};font-weight:700;">${avgF}/5</td><td style="font-weight:700;">${avgB}/2</td><td style="color:var(--gold)">${p.bestFront}+${p.bestBack}</td><td style="color:var(--purple,#9b59b6)">${p.compBestLevel || '-'}</td><td style="color:var(--yellow)">${p.dtBestLevel || '-'}</td><td style="text-align:center;padding:0 5px;">${sparklineHTML}</td></tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;

@@ -1,4 +1,4 @@
-﻿// =============================================
+// =============================================
 // SECTION 5: 走势图分析 (Tab 3)
 // =============================================
 function drawTrendChart() {
@@ -175,8 +175,17 @@ function drawACChart() {
 function renderLatestDLT() {
   refreshDLTHistory();
   const el = $('#dlt-latest-content');
+  const summaryText = $('#dlt-latest-summary-text');
   if (!el || DLT_HISTORY.length === 0) return;
   const latest = DLT_HISTORY[0], prev = DLT_HISTORY.length > 1 ? DLT_HISTORY[1] : null;
+  
+  if (summaryText) {
+    summaryText.innerHTML = `第 ${latest.issue} 期 | ` + 
+      latest.front.map(n => String(n).padStart(2, '0')).join(' ') + 
+      ` <span style="color:var(--text-muted)">+</span> ` + 
+      latest.back.map(n => String(n).padStart(2, '0')).join(' ');
+  }
+
   const makeBall = (n, bg) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${bg};color:#fff;font-weight:700;font-size:0.85rem;margin:0 2px;">${String(n).padStart(2, '0')}</span>`;
   const sum = latest.front.reduce((a, b) => a + b, 0), odd = latest.front.filter(n => n % 2 === 1).length, span = latest.front[4] - latest.front[0];
   let repeatInfo = '';
