@@ -1,7 +1,22 @@
 {
-  "lastUpdate": "2026-10-14T12:35:43.747Z",
-  "totalIssues": 193,
+  "lastUpdate": "2026-10-14T14:22:31.064Z",
+  "totalIssues": 194,
   "issues": [
+    {
+      "issue": "26117",
+      "front": [
+        4,
+        13,
+        19,
+        29,
+        31
+      ],
+      "back": [
+        2,
+        12
+      ],
+      "date": ""
+    },
     {
       "issue": "26116",
       "front": [
